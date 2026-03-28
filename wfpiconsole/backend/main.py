@@ -5,7 +5,6 @@ from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware import gzip
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -90,8 +89,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Add GZIP compression for responses
-    app.add_middleware(gzip.GZipMiddleware, minimum_size=1000)
+    # GZip middleware triggers noisy closed-stream errors on this Windows/Python 3.13 setup.
+    # Skip compression for local stability.
 
     # Include routers
     app.include_router(auth_router)

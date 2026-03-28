@@ -84,12 +84,24 @@ async def login(request: Request, db: Session = Depends(get_db)):
             payload = {}
 
         credentials = LoginRequest(
-            username=payload.get("username", ""),
-            password=payload.get("password", ""),
+            username=str(payload.get("username", "")).strip(),
+            password=str(payload.get("password", "")),
         )
 
         # Find user by username
         user = db.query(AdminUser).filter(AdminUser.username == credentials.username).first()
+
+        # Browser autofill / stale frontend bundles have occasionally submitted an empty
+        # username with the correct password. If there is exactly one admin user, allow
+        # that bootstrap path instead of failing with a misleading 401.
+        if not user and not credentials.username and credentials.password:
+            admin_users = db.query(AdminUser).all()
+            if len(admin_users) == 1:
+                candidate = admin_users[0]
+                auth_manager = get_auth_manager()
+                if auth_manager.verify_password(credentials.password, candidate.password_hash):
+                    user = candidate
+                    credentials = LoginRequest(username=candidate.username, password=credentials.password)
 
         if not user:
             logger.warning(f"Login attempt with non-existent user: {credentials.username}")
