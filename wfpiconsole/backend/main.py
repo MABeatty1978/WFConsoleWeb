@@ -1,11 +1,13 @@
 """FastAPI application initialization and core endpoints"""
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware import gzip
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from wfpiconsole.config.settings import get_settings
 from wfpiconsole.config.database import init_db
@@ -176,17 +178,29 @@ def create_app() -> FastAPI:
             "release_date": "2024-01-01",
         }
 
-    # 404 error handler
-    @app.exception_handler(404)
-    async def not_found_handler(request, exc):
-        """Handle 404 errors."""
-        return JSONResponse(
-            status_code=status.HTTP_404_NOT_FOUND,
-            content={
-                "detail": f"Path '{request.url.path}' not found",
-                "path": request.url.path,
-            },
-        )
+    # Root endpoint - serve frontend
+    @app.get("/", include_in_schema=False)
+    async def root():
+        """Serve the frontend application."""
+        frontend_dir = Path(__file__).parent.parent / "frontend" / "public"
+        index_file = frontend_dir / "index.html"
+        
+        if index_file.exists():
+            return FileResponse(index_file, media_type="text/html")
+        else:
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content={
+                    "message": "WFConsoleWeb API",
+                    "version": "0.1.0a1",
+                    "docs": "/api/docs",
+                },
+            )
+
+    # Serve static files from frontend/public
+    frontend_static = Path(__file__).parent.parent / "frontend" / "public"
+    if frontend_static.exists():
+        app.mount("/", StaticFiles(directory=str(frontend_static), html=True), name="static")
 
     # 500 error handler
     @app.exception_handler(Exception)
