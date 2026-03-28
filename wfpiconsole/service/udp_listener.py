@@ -86,8 +86,8 @@ class UDPListenerService:
         try:
             self.packet_count += 1
 
-            # Decode and parse JSON
-            message = json.loads(data.decode("utf-8"))
+            # Decode to string (parser will handle JSON parsing)
+            message = data.decode("utf-8")
 
             # Parse observation from message
             parsed = self.parser.parse_message(message)
