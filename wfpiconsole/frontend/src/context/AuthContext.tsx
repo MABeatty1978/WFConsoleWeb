@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       setError(null);
-      const response = await apiClient.login(username, password);
+      const response = await apiClient.login({ username, password });
       // Token is stored by apiClient
       setUsername(username);
       setIsAuthenticated(true);

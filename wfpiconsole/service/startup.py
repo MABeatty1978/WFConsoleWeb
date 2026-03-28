@@ -1,10 +1,13 @@
 """Application startup and service initialization"""
 import logging
 import asyncio
+from datetime import datetime
 from typing import Optional
 
 from wfpiconsole.service.udp_listener import get_udp_service
 from wfpiconsole.config.settings import get_settings
+from wfpiconsole.config.database import SessionLocal
+from wfpiconsole.config.models import ObservationHistory
 
 
 logger = logging.getLogger(__name__)
@@ -30,6 +33,7 @@ class ServiceManager:
 
             # Start UDP listener
             self.udp_service = get_udp_service(port=settings.udp_port)
+            self.udp_service.register_callback(self._persist_observation)
             await self.udp_service.start()
             logger.info("UDP listener service started")
 
@@ -118,6 +122,42 @@ class ServiceManager:
             "udp_service": self.udp_service.get_stats() if self.udp_service else None,
             "active_tasks": len(self.tasks),
         }
+
+    async def _persist_observation(self, observation) -> None:
+        """Persist each UDP observation to the database for REST endpoints and charts."""
+        db = SessionLocal()
+        try:
+            obs = ObservationHistory(
+                timestamp=observation.timestamp or datetime.utcnow(),
+                station_id=observation.station_id,
+                device_id=observation.device_id,
+                air_temperature=observation.air_temperature,
+                feels_like_temperature=observation.feels_like_temperature,
+                dew_point=observation.dew_point,
+                relative_humidity=observation.relative_humidity,
+                wind_speed=observation.wind_speed,
+                wind_gust=observation.wind_gust,
+                wind_direction=observation.wind_direction,
+                sea_level_pressure=observation.sea_level_pressure,
+                pressure_trend=observation.pressure_trend,
+                rainfall_rate=observation.rainfall_rate,
+                rainfall_daily=observation.rainfall_daily or observation.rainfall_accumulated_last_1h,
+                rainfall_monthly=observation.rainfall_monthly,
+                rainfall_yearly=observation.rainfall_yearly,
+                lightning_strike_count=observation.lightning_strike_count_3h,
+                lightning_avg_distance=observation.lightning_strike_last_distance,
+                solar_radiation=observation.solar_radiation,
+                uv_index=observation.uv_index,
+                battery_voltage=observation.battery_voltage,
+                rssi=observation.rssi,
+            )
+            db.add(obs)
+            db.commit()
+        except Exception as exc:
+            db.rollback()
+            logger.error(f"Failed to persist UDP observation: {exc}")
+        finally:
+            db.close()
 
 
 # Global singleton

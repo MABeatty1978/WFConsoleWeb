@@ -105,8 +105,8 @@ class ApiClient {
   }
 
   // Station endpoints
-  async getStationInfo(): Promise<StationInfo> {
-    return this.request<StationInfo>("GET", "/station/info");
+  async getStationInfo(): Promise<StationInfo | null> {
+    return this.request<StationInfo | null>("GET", "/station/info");
   }
 
   async getLatestObservation(): Promise<Observation | null> {

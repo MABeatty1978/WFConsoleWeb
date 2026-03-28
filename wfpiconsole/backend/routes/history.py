@@ -266,15 +266,22 @@ async def get_solar_radiation_history(
     for obs in observations:
         bucket_time = obs.timestamp.replace(minute=0, second=0, microsecond=0)
         if current_bucket != bucket_time and bucket_data:
-            avg_solar = sum(o.solar_radiation_wm2 for o in bucket_data if o.solar_radiation_wm2 is not None) / len(
-                [o for o in bucket_data if o.solar_radiation_wm2 is not None]
-            )
-            data_points.append(DataPoint(timestamp=current_bucket.isoformat(), value=avg_solar))
-            solar_values.append(avg_solar)
+            solar_samples = [o.solar_radiation for o in bucket_data if o.solar_radiation is not None]
+            if solar_samples:
+                avg_solar = sum(solar_samples) / len(solar_samples)
+                data_points.append(DataPoint(timestamp=current_bucket.isoformat(), value=avg_solar))
+                solar_values.append(avg_solar)
             bucket_data = []
 
         current_bucket = bucket_time
         bucket_data.append(obs)
+
+    if current_bucket and bucket_data:
+        solar_samples = [o.solar_radiation for o in bucket_data if o.solar_radiation is not None]
+        if solar_samples:
+            avg_solar = sum(solar_samples) / len(solar_samples)
+            data_points.append(DataPoint(timestamp=current_bucket.isoformat(), value=avg_solar))
+            solar_values.append(avg_solar)
 
     return TimeSeriesData(
         metric="solar_radiation",
@@ -315,19 +322,19 @@ async def get_raw_observations(
             {
                 "timestamp": obs.timestamp.isoformat(),
                 "device_id": obs.device_id,
-                "temp_c": obs.temp_c,
-                "humidity": obs.humidity,
-                "pressure_mb": obs.pressure_mb,
-                "wind_speed_mps": obs.wind_speed_mps,
-                "wind_gust_mps": obs.wind_gust_mps,
-                "wind_direction_deg": obs.wind_direction_deg,
-                "rainfall_mm": obs.rainfall_mm,
-                "solar_radiation_wm2": obs.solar_radiation_wm2,
+                "temp_c": obs.air_temperature,
+                "humidity": obs.relative_humidity,
+                "pressure_mb": obs.sea_level_pressure,
+                "wind_speed_mps": obs.wind_speed,
+                "wind_gust_mps": obs.wind_gust,
+                "wind_direction_deg": obs.wind_direction,
+                "rainfall_mm": obs.rainfall_rate,
+                "solar_radiation_wm2": obs.solar_radiation,
                 "uv_index": obs.uv_index,
                 "lightning_strike_count": obs.lightning_strike_count,
-                "lightning_strike_last_distance_km": obs.lightning_strike_last_distance_km,
+                "lightning_strike_last_distance_km": obs.lightning_avg_distance,
                 "battery_voltage": obs.battery_voltage,
-                "signal_strength": obs.signal_strength,
+                "signal_strength": obs.rssi,
             }
             for obs in observations
         ],

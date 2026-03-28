@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from wfpiconsole.config.settings import get_settings
 from wfpiconsole.config.database import init_db
 from wfpiconsole.backend.websocket import get_ws_manager
+from wfpiconsole.backend.auth import get_auth_manager
 from wfpiconsole.backend.routes import (
     auth_router,
     config_router,
@@ -40,6 +41,26 @@ async def lifespan(app: FastAPI):
     try:
         init_db()
         logger.info("Database initialized successfully")
+
+        # Create bootstrap admin user if no admin users exist
+        from wfpiconsole.config.database import SessionLocal
+        from wfpiconsole.config.models import AdminUser
+        db = SessionLocal()
+        try:
+            admin_count = db.query(AdminUser).count()
+            if admin_count == 0:
+                auth_manager = get_auth_manager()
+                from datetime import datetime, timezone
+                admin_user = AdminUser(
+                    username="admin",
+                    password_hash=auth_manager.hash_password("Tempest123!"),
+                    created_at=datetime.now(timezone.utc),
+                )
+                db.add(admin_user)
+                db.commit()
+                logger.info("Bootstrap admin account created: admin/Tempest123!")
+        finally:
+            db.close()
 
         # Start background services
         service_manager = get_service_manager()

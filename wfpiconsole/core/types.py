@@ -8,6 +8,9 @@ from typing import Optional, List
 class Observation:
     """Complete weather observation from Tempest device"""
     timestamp: datetime
+
+    # Metadata about the source packet so clients can merge mixed-frequency data.
+    packet_type: Optional[str] = None
     
     # Temperature (Celsius)
     air_temperature: Optional[float] = None

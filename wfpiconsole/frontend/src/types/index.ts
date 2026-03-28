@@ -4,7 +4,8 @@
 
 export interface Observation {
   timestamp: string;
-  device_id: string;
+  packet_type?: string | null;
+  device_id: string | null;
   temp_c: number | null;
   humidity: number | null;
   pressure_mb: number | null;

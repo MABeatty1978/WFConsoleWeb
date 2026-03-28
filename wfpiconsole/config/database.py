@@ -8,6 +8,9 @@ from wfpiconsole.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
+# Debug: Log the database URL being used
+logger.info(f"Database URL: {settings.database_url}")
+
 # Create SQLAlchemy engine
 if settings.database_url.startswith("sqlite"):
     # SQLite specific configuration

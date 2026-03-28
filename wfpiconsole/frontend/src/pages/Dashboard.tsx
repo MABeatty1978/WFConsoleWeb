@@ -15,7 +15,7 @@ import DataExportModal from "../components/DataExportModal";
 import "./Dashboard.css";
 
 export default function Dashboard() {
-  const { observation, conditions, loading: condLoading, error: condError } = useObservation(true);
+  const { observation, conditions, rapidWind, loading: condLoading, error: condError } = useObservation(true);
   const { station, loading: stationLoading, error: stationError } = useStationInfo();
   const { connected, error: wsError } = useWebSocket(true);
   const { username } = useAuth();
@@ -64,6 +64,7 @@ export default function Dashboard() {
               <CurrentConditionsPanel
                 observation={observation}
                 conditions={conditions}
+                rapidWind={rapidWind}
                 station={station}
               />
             </section>
@@ -100,7 +101,7 @@ export default function Dashboard() {
         <p>
           Last updated:{" "}
           {observation?.timestamp
-            ? new Date(observation.timestamp * 1000).toLocaleString()
+            ? new Date(observation.timestamp).toLocaleString()
             : "--"}
         </p>
       </footer>

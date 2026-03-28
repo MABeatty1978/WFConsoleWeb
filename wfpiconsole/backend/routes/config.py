@@ -91,9 +91,9 @@ async def get_config_status(db: Session = Depends(get_db)):
 
     return {
         "is_configured": bool(station),
-        "station_name": station.name if station else None,
+        "station_name": station.station_name if station else None,
         "has_display_settings": bool(settings),
-        "api_keys_configured": [key.service for key in api_keys if key.is_valid],
+        "api_keys_configured": [key.service_name for key in api_keys if key.is_valid],
     }
 
 
@@ -108,15 +108,15 @@ async def get_station_config(station: Optional[StationConfig] = Depends(get_stat
 
     return {
         "station_id": station.station_id,
-        "name": station.name,
+        "name": station.station_name,
         "latitude": station.latitude,
         "longitude": station.longitude,
-        "elevation_m": station.elevation_m,
-        "device_id": station.device_id,
-        "hub_sn": station.hub_sn,
+        "elevation_m": station.elevation,
+        "device_id": station.tempest_device_id,
+        "hub_sn": None,
         "connection_type": station.connection_type,
-        "created_at": station.created_at.isoformat(),
-        "updated_at": station.updated_at.isoformat(),
+        "created_at": station.created_at.isoformat() if station.created_at else None,
+        "updated_at": station.updated_at.isoformat() if station.updated_at else None,
     }
 
 
@@ -136,18 +136,18 @@ async def update_station_config(
 
         # Update fields
         station.station_id = config.station_id
-        station.name = config.name
+        station.station_name = config.name
         station.latitude = config.latitude
         station.longitude = config.longitude
-        station.elevation_m = config.elevation_m
-        station.device_id = config.device_id
-        station.hub_sn = config.hub_sn
+        station.elevation = config.elevation_m
+        station.tempest_device_id = config.device_id
         station.connection_type = config.connection_type
 
         db.commit()
+        db.refresh(station)
         logger.info(f"Station configuration updated by {current_user.username}")
 
-        return {"status": "success", "station_name": station.name}
+        return {"status": "success", "station_name": station.station_name}
 
     except Exception as e:
         logger.error(f"Error updating station config: {e}")

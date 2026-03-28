@@ -114,7 +114,7 @@ export default function LoginPage() {
           <p>
             WFConsoleWeb • Built with
             <span className="heart"> ❤ </span>
-            • <a href="https://ko-fi.com" target="_blank" rel="noopener noreferrer">Support on Ko-fi</a>
+            • <a href="https://ko-fi.com/michaelbeatty9142002" target="_blank" rel="noopener noreferrer">Support on Ko-fi</a>
           </p>
         </div>
       </div>

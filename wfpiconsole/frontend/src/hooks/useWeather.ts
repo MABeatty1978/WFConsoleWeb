@@ -13,8 +13,43 @@ import { wsService } from "../services/websocket";
 export function useObservation(autoRefresh = true) {
   const [observation, setObservation] = useState<Observation | null>(null);
   const [conditions, setConditions] = useState<CurrentConditions | null>(null);
+  const [rapidWind, setRapidWind] = useState<{
+    timestamp: string;
+    wind_speed_mps: number | null;
+    wind_gust_mps: number | null;
+    wind_direction_deg: number | null;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const getWindCardinal = useCallback((degrees: number | null | undefined): string => {
+    if (degrees === null || degrees === undefined) {
+      return "--";
+    }
+
+    const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+    const index = Math.round(degrees / 22.5) % 16;
+    return directions[index];
+  }, []);
+
+  const normalizeRealtimeObservation = useCallback((payload: Record<string, unknown>): Partial<Observation> => ({
+    timestamp: typeof payload.timestamp === "string" ? payload.timestamp : new Date().toISOString(),
+    packet_type: typeof payload.packet_type === "string" ? payload.packet_type : null,
+    device_id: typeof payload.device_id === "string" ? payload.device_id : null,
+    temp_c: typeof payload.air_temperature === "number" ? payload.air_temperature : null,
+    humidity: typeof payload.relative_humidity === "number" ? payload.relative_humidity : null,
+    pressure_mb: typeof payload.sea_level_pressure === "number" ? payload.sea_level_pressure : null,
+    wind_speed_mps: typeof payload.wind_speed === "number" ? payload.wind_speed : null,
+    wind_gust_mps: typeof payload.wind_gust === "number" ? payload.wind_gust : null,
+    wind_direction_deg: typeof payload.wind_direction === "number" ? payload.wind_direction : null,
+    rainfall_mm: typeof payload.rainfall_rate === "number" ? payload.rainfall_rate : null,
+    solar_radiation_wm2: typeof payload.solar_radiation === "number" ? payload.solar_radiation : null,
+    uv_index: typeof payload.uv_index === "number" ? payload.uv_index : null,
+    lightning_strike_count: typeof payload.lightning_strike_count_3h === "number" ? payload.lightning_strike_count_3h : null,
+    lightning_strike_last_distance_km: typeof payload.lightning_strike_last_distance === "number" ? payload.lightning_strike_last_distance : null,
+    battery_voltage: typeof payload.battery_voltage === "number" ? payload.battery_voltage : null,
+    signal_strength: typeof payload.rssi === "number" ? payload.rssi : null,
+  }), []);
 
   const fetchLatest = useCallback(async () => {
     try {
@@ -40,13 +75,72 @@ export function useObservation(autoRefresh = true) {
 
     // Subscribe to WebSocket updates
     const unsubscribe = wsService.onObservation((obs) => {
-      setObservation(obs);
+      const normalized = normalizeRealtimeObservation(obs as Record<string, unknown>);
+      const packetType = normalized.packet_type ?? null;
+
+      setObservation((current) => {
+        if (!current) {
+          return normalized as Observation;
+        }
+
+        return {
+          ...current,
+          ...Object.fromEntries(Object.entries(normalized).filter(([, value]) => value !== null)),
+        };
+      });
+
+      if (packetType === "rapid_wind") {
+        setRapidWind((current) => {
+          const speed = normalized.wind_speed_mps ?? current?.wind_speed_mps ?? null;
+          const gustCandidate = normalized.wind_gust_mps ?? current?.wind_gust_mps ?? speed;
+          const gust = Math.max(
+            speed ?? Number.NEGATIVE_INFINITY,
+            gustCandidate ?? Number.NEGATIVE_INFINITY,
+          );
+
+          return {
+            timestamp: typeof normalized.timestamp === "string" ? normalized.timestamp : new Date().toISOString(),
+            wind_speed_mps: speed,
+            wind_gust_mps: Number.isFinite(gust) ? gust : null,
+            wind_direction_deg: normalized.wind_direction_deg ?? current?.wind_direction_deg ?? null,
+          };
+        });
+
+        setConditions((current) => {
+          if (!current) {
+            return current;
+          }
+
+          const windSpeed = normalized.wind_speed_mps ?? current.wind_speed_mps;
+          const windDirection = normalized.wind_direction_deg ?? current.wind_direction_deg;
+          const windGust = Math.max(
+            windSpeed ?? Number.NEGATIVE_INFINITY,
+            normalized.wind_gust_mps ?? current.wind_gust_mps ?? Number.NEGATIVE_INFINITY,
+          );
+
+          return {
+            ...current,
+            wind_speed_mps: windSpeed,
+            wind_speed_mph: windSpeed !== null && windSpeed !== undefined ? windSpeed * 2.23694 : current.wind_speed_mph,
+            wind_gust_mps: Number.isFinite(windGust) ? windGust : null,
+            wind_gust_mph: Number.isFinite(windGust) ? windGust * 2.23694 : current.wind_gust_mph,
+            wind_direction_deg: windDirection,
+            wind_direction_cardinal: getWindCardinal(windDirection),
+            observation_timestamp: typeof normalized.timestamp === "string" ? normalized.timestamp : current.observation_timestamp,
+          };
+        });
+        return;
+      }
+
+      if (packetType !== "rapid_wind") {
+        void fetchLatest();
+      }
     });
 
     return unsubscribe;
-  }, [autoRefresh, fetchLatest]);
+  }, [autoRefresh, fetchLatest, getWindCardinal, normalizeRealtimeObservation]);
 
-  return { observation, conditions, loading, error, refetch: fetchLatest };
+  return { observation, conditions, rapidWind, loading, error, refetch: fetchLatest };
 }
 
 /**

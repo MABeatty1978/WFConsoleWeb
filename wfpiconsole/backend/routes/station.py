@@ -4,6 +4,7 @@ from typing import Optional, List
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -11,7 +12,6 @@ from wfpiconsole.config.models import ObservationHistory, StationConfig
 from wfpiconsole.backend.dependencies import (
     get_db,
     get_station_config,
-    require_station_config,
 )
 
 
@@ -23,12 +23,68 @@ router = APIRouter(prefix="/api/station", tags=["Station"])
 _latest_observation: Optional[dict] = None
 
 
+def _get_latest_complete_observation(db: Session) -> Optional[ObservationHistory]:
+    """Return the newest observation row with complete sensor data."""
+    return (
+        db.query(ObservationHistory)
+        .filter(
+            or_(
+                ObservationHistory.air_temperature.isnot(None),
+                ObservationHistory.relative_humidity.isnot(None),
+                ObservationHistory.sea_level_pressure.isnot(None),
+            )
+        )
+        .order_by(ObservationHistory.timestamp.desc())
+        .first()
+    )
+
+
+def _get_latest_wind_observation(db: Session) -> Optional[ObservationHistory]:
+    """Return the newest row that contains wind data, including rapid wind packets."""
+    return (
+        db.query(ObservationHistory)
+        .filter(ObservationHistory.wind_speed.isnot(None))
+        .order_by(ObservationHistory.timestamp.desc())
+        .first()
+    )
+
+
+def _get_latest_snapshot(db: Session) -> Optional[tuple[ObservationHistory, Optional[ObservationHistory]]]:
+    """Return the latest full observation with the most recent wind update layered on top."""
+    latest_complete = _get_latest_complete_observation(db)
+    if not latest_complete:
+        return None
+
+    latest_wind = _get_latest_wind_observation(db)
+    if latest_wind and latest_wind.timestamp and latest_complete.timestamp:
+        if latest_wind.timestamp < latest_complete.timestamp:
+            latest_wind = None
+
+    return latest_complete, latest_wind
+
+
+def _get_merged_wind_values(
+    latest_complete: ObservationHistory,
+    latest_wind: Optional[ObservationHistory],
+) -> tuple[Optional[float], Optional[float], Optional[int], datetime]:
+    """Merge the latest complete observation with any newer wind-only update."""
+    wind_speed = latest_wind.wind_speed if latest_wind and latest_wind.wind_speed is not None else latest_complete.wind_speed
+    wind_gust = latest_wind.wind_gust if latest_wind and latest_wind.wind_gust is not None else latest_complete.wind_gust
+    wind_direction = latest_wind.wind_direction if latest_wind and latest_wind.wind_direction is not None else latest_complete.wind_direction
+    effective_timestamp = latest_wind.timestamp if latest_wind and latest_wind.timestamp else latest_complete.timestamp
+
+    if wind_speed is not None:
+        wind_gust = max(wind_speed, wind_gust or wind_speed)
+
+    return wind_speed, wind_gust, wind_direction, effective_timestamp
+
+
 # Pydantic models
 class ObservationResponse(BaseModel):
     """Current observation data."""
 
     timestamp: str
-    device_id: str
+    device_id: Optional[str]
     temp_c: Optional[float]
     humidity: Optional[float]
     pressure_mb: Optional[float]
@@ -86,17 +142,20 @@ class CurrentConditionsResponse(BaseModel):
 # Station endpoints
 
 
-@router.get("/info", response_model=StationInfoResponse)
-async def get_station_info(station: StationConfig = Depends(require_station_config)):
-    """Get station configuration and metadata."""
+@router.get("/info", response_model=Optional[StationInfoResponse])
+async def get_station_info(station: Optional[StationConfig] = Depends(get_station_config)):
+    """Get station configuration and metadata if available."""
+    if not station:
+        return None
+
     return StationInfoResponse(
         station_id=station.station_id,
-        name=station.name,
+        name=station.station_name,
         latitude=station.latitude,
         longitude=station.longitude,
-        elevation_m=station.elevation_m,
-        device_id=station.device_id,
-        hub_sn=station.hub_sn,
+        elevation_m=station.elevation,
+        device_id=station.tempest_device_id,
+        hub_sn=None,
         connection_type=station.connection_type,
     )
 
@@ -105,20 +164,24 @@ async def get_station_info(station: StationConfig = Depends(require_station_conf
 @router.get("/observations", response_model=Optional[ObservationResponse])
 async def get_latest_observation(db: Session = Depends(get_db)):
     """Get the latest observation from database."""
-    latest = db.query(ObservationHistory).order_by(ObservationHistory.timestamp.desc()).first()
+    snapshot = _get_latest_snapshot(db)
 
-    if not latest:
+    if not snapshot:
         return None
 
+    latest, latest_wind = snapshot
+
+    wind_speed, wind_gust, wind_direction, effective_timestamp = _get_merged_wind_values(latest, latest_wind)
+
     return ObservationResponse(
-        timestamp=latest.timestamp.isoformat(),
-        device_id=latest.device_id,
+        timestamp=effective_timestamp.isoformat(),
+        device_id=latest.device_id or (latest_wind.device_id if latest_wind else None),
         temp_c=latest.air_temperature,
         humidity=latest.relative_humidity,
         pressure_mb=latest.sea_level_pressure,
-        wind_speed_mps=latest.wind_speed,
-        wind_gust_mps=latest.wind_gust,
-        wind_direction_deg=latest.wind_direction,
+        wind_speed_mps=wind_speed,
+        wind_gust_mps=wind_gust,
+        wind_direction_deg=wind_direction,
         rainfall_mm=latest.rainfall_rate,
         solar_radiation_wm2=latest.solar_radiation,
         uv_index=latest.uv_index,
@@ -139,10 +202,13 @@ async def get_current_conditions(db: Session = Depends(get_db)):
         calculate_uv_risk_level,
     )
 
-    latest = db.query(ObservationHistory).order_by(ObservationHistory.timestamp.desc()).first()
+    snapshot = _get_latest_snapshot(db)
 
-    if not latest:
+    if not snapshot:
         return None
+
+    latest, latest_wind = snapshot
+    wind_mps, wind_gust_mps, wind_dir_value, effective_timestamp = _get_merged_wind_values(latest, latest_wind)
 
     # Temperature conversions
     temp_c = latest.air_temperature
@@ -150,23 +216,22 @@ async def get_current_conditions(db: Session = Depends(get_db)):
 
     # Feels like calculation
     feels_like_c = (
-        calculate_feels_like_temperature(temp_c, latest.wind_speed, latest.relative_humidity)
+        calculate_feels_like_temperature(temp_c, wind_mps, latest.relative_humidity)
         if temp_c is not None
         else None
     )
     feels_like_f = convert_temperature(feels_like_c, "C", "F") if feels_like_c is not None else None
 
     # Wind conversions
-    wind_mps = latest.wind_speed
     wind_mph = wind_mps * 2.23694 if wind_mps is not None else None
-    wind_gust_mph = latest.wind_gust * 2.23694 if latest.wind_gust is not None else None
+    wind_gust_mph = wind_gust_mps * 2.23694 if wind_gust_mps is not None else None
 
     # Rainfall conversions
     rain_mm = latest.rainfall_rate
     rain_in = rain_mm / 25.4 if rain_mm is not None else None
 
     # Wind direction (cardinal)
-    wind_dir = latest.wind_direction if latest.wind_direction is not None else 0
+    wind_dir = wind_dir_value if wind_dir_value is not None else 0
     cardinal_directions = [
         "N",
         "NNE",
@@ -211,7 +276,7 @@ async def get_current_conditions(db: Session = Depends(get_db)):
         pressure_mb=latest.sea_level_pressure,
         wind_speed_mps=wind_mps,
         wind_speed_mph=wind_mph,
-        wind_gust_mps=latest.wind_gust,
+        wind_gust_mps=wind_gust_mps,
         wind_gust_mph=wind_gust_mph,
         wind_direction_deg=wind_dir,
         wind_direction_cardinal=cardinal,
@@ -223,7 +288,7 @@ async def get_current_conditions(db: Session = Depends(get_db)):
         lightning_distance_km=latest.lightning_avg_distance,
         battery_status=battery_status,
         signal_strength=latest.rssi,
-        observation_timestamp=latest.timestamp.isoformat(),
+        observation_timestamp=effective_timestamp.isoformat(),
     )
 
 

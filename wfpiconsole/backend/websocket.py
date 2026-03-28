@@ -154,6 +154,8 @@ class WebSocketManager:
         """Convert Observation to JSON-serializable dict."""
         return {
             "timestamp": observation.timestamp.isoformat() if observation.timestamp else None,
+            "packet_type": observation.packet_type,
+            "station_id": observation.station_id,
             "device_id": observation.device_id,
             "air_temperature": observation.air_temperature,
             "relative_humidity": observation.relative_humidity,
@@ -162,6 +164,7 @@ class WebSocketManager:
             "wind_gust": observation.wind_gust,
             "wind_direction": observation.wind_direction,
             "rainfall_rate": observation.rainfall_rate,
+            "rainfall_daily": observation.rainfall_daily,
             "solar_radiation": observation.solar_radiation,
             "uv_index": observation.uv_index,
             "lightning_strike_count_3h": observation.lightning_strike_count_3h,

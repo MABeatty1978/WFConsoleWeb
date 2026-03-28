@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     master_password: str = os.getenv("MASTER_PASSWORD", "")
 
     # Ko-fi Configuration
-    kofi_profile_url: str = os.getenv("KOFI_PROFILE_URL", "https://ko-fi.com/")
+    kofi_profile_url: str = os.getenv("KOFI_PROFILE_URL", "https://ko-fi.com/michaelbeatty9142002")
 
     # Data Storage
     data_directory: Path = Path(os.getenv("DATA_DIR", str(DEFAULT_DATA_DIR)))

@@ -16,6 +16,7 @@ class ObservationParser:
         """Initialize parser"""
         self.last_obs_timestamp = None
         self.last_rapid_wind_timestamp = None
+        self.last_non_zero_rapid_wind_direction = None
 
     def parse_message(self, message: str) -> Optional[Dict[str, Any]]:
         """
@@ -65,6 +66,7 @@ class ObservationParser:
 
             result = {
                 "type": "observation",
+                "packet_type": "obs_st",
                 "timestamp": datetime.fromtimestamp(timestamp, tz=timezone.utc),
                 "air_temperature": obs_data[7],  # in Celsius
                 "relative_humidity": obs_data[8],
@@ -72,14 +74,15 @@ class ObservationParser:
                 "wind_speed": obs_data[2],  # Average wind speed (m/s)
                 "wind_gust": obs_data[3],  # Gust wind speed (m/s)
                 "wind_direction": obs_data[4],  # Wind direction (degrees)
-                "rainfall_accumulated_last_1h": obs_data[11],  # mm
-                "rainfall_rate": obs_data[12],  # mm/h
-                "solar_radiation": obs_data[14],  # W/m^2
-                "uv_index": obs_data[15],
-                "battery_voltage": obs_data[16],  # V
-                "rssi": obs_data[17],  # Signal strength dBm
+                "rainfall_rate": obs_data[12],  # Rain accumulation over the previous minute (mm)
+                "rainfall_daily": obs_data[18] if len(obs_data) > 18 else None,
+                "solar_radiation": obs_data[11],  # W/m^2
+                "uv_index": obs_data[10],
+                "lightning_strike_last_distance": obs_data[14] if len(obs_data) > 14 else None,
+                "lightning_strike_count_3h": obs_data[15] if len(obs_data) > 15 else None,
+                "battery_voltage": obs_data[16] if len(obs_data) > 16 else None,
                 "station_id": data.get("station_id"),
-                "device_id": data.get("device_id"),
+                "device_id": data.get("device_id") or data.get("serial_number"),
             }
 
             return result
@@ -94,12 +97,21 @@ class ObservationParser:
             timestamp = data.get("ob")[0]
             self.last_rapid_wind_timestamp = timestamp
 
+            wind_speed = data.get("ob")[1]
+            wind_direction = data.get("ob")[2]
+
+            if wind_speed == 0 and self.last_non_zero_rapid_wind_direction is not None:
+                wind_direction = self.last_non_zero_rapid_wind_direction
+            elif wind_speed not in (None, 0):
+                self.last_non_zero_rapid_wind_direction = wind_direction
+
             result = {
                 "type": "rapid_wind",
+                "packet_type": "rapid_wind",
                 "timestamp": datetime.fromtimestamp(timestamp, tz=timezone.utc),
-                "wind_speed": data.get("ob")[1],  # m/s
-                "wind_direction": data.get("ob")[2],  # degrees
-                "device_id": data.get("device_id"),
+                "wind_speed": wind_speed,  # m/s
+                "wind_direction": wind_direction,  # degrees
+                "device_id": data.get("device_id") or data.get("serial_number"),
                 "station_id": data.get("station_id"),
             }
 
@@ -112,11 +124,16 @@ class ObservationParser:
     def _parse_lightning_strike(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Parse lightning strike event"""
         try:
+            event = data.get("evt") or []
+            timestamp = event[0] if len(event) > 0 else data.get("ts")
+            distance = event[1] if len(event) > 1 else data.get("distance")
+
             result = {
                 "type": "lightning_strike",
-                "timestamp": datetime.fromtimestamp(data.get("ts"), tz=timezone.utc),
-                "strike_distance": data.get("distance"),  # km
-                "device_id": data.get("device_id"),
+                "packet_type": "evt_strike",
+                "timestamp": datetime.fromtimestamp(timestamp, tz=timezone.utc),
+                "strike_distance": distance,  # km
+                "device_id": data.get("device_id") or data.get("serial_number"),
                 "station_id": data.get("station_id"),
             }
 
@@ -131,8 +148,9 @@ class ObservationParser:
         try:
             result = {
                 "type": "precipitation",
+                "packet_type": "evt_precip",
                 "timestamp": datetime.fromtimestamp(data.get("ts"), tz=timezone.utc),
-                "device_id": data.get("device_id"),
+                "device_id": data.get("device_id") or data.get("serial_number"),
                 "station_id": data.get("station_id"),
             }
 
@@ -150,9 +168,10 @@ class ObservationParser:
 
         obs_type = message_dict.get("type")
 
-        if obs_type == "observation":
+        if obs_type in {"observation", "rapid_wind", "lightning_strike", "precipitation"}:
             return Observation(
                 timestamp=message_dict.get("timestamp"),
+                packet_type=message_dict.get("packet_type") or obs_type,
                 air_temperature=message_dict.get("air_temperature"),
                 relative_humidity=message_dict.get("relative_humidity"),
                 sea_level_pressure=message_dict.get("sea_level_pressure"),
@@ -161,8 +180,11 @@ class ObservationParser:
                 wind_direction=message_dict.get("wind_direction"),
                 rainfall_accumulated_last_1h=message_dict.get("rainfall_accumulated_last_1h"),
                 rainfall_rate=message_dict.get("rainfall_rate"),
+                rainfall_daily=message_dict.get("rainfall_daily"),
                 solar_radiation=message_dict.get("solar_radiation"),
                 uv_index=message_dict.get("uv_index"),
+                lightning_strike_count_3h=message_dict.get("lightning_strike_count_3h"),
+                lightning_strike_last_distance=message_dict.get("lightning_strike_last_distance") or message_dict.get("strike_distance"),
                 battery_voltage=message_dict.get("battery_voltage"),
                 rssi=message_dict.get("rssi"),
                 station_id=message_dict.get("station_id"),

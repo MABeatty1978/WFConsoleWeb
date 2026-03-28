@@ -288,7 +288,7 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE) fi
 
 If you find this project useful, consider supporting its development:
 
-- **Ko-fi**: [Support via Ko-fi](https://ko-fi.com/) (link set in Settings menu)
+- **Ko-fi**: [Support via Ko-fi](https://ko-fi.com/michaelbeatty9142002) (link set in Settings menu)
 - **GitHub**: [Star on GitHub](https://github.com/yourusername/WFConsoleWeb)
 - **Issues**: Report bugs or request features on the [Issue Tracker](https://github.com/yourusername/WFConsoleWeb/issues)
 

@@ -3,12 +3,14 @@ Forecast routes - Sager and astronomical data endpoints
 """
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
-from wfpiconsole.backend.dependencies import get_db, get_current_user
-from wfpiconsole.config.database import get_db
+from wfpiconsole.backend.auth import get_current_user
+from wfpiconsole.backend.dependencies import get_db
+from datetime import datetime, timezone
+
 from wfpiconsole.core.astronomical import AstronomicalCalculator
-from wfpiconsole.core.sager import SagerForecast
+from wfpiconsole.core.sager import SagerWeatherForecast
 
 router = APIRouter(prefix="/api/forecast", tags=["forecast"])
 
@@ -16,7 +18,7 @@ router = APIRouter(prefix="/api/forecast", tags=["forecast"])
 @router.get("/sager")
 async def get_sager_forecast(
     current_user=Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
     """
     Get Sager barometric forecast
@@ -29,7 +31,7 @@ async def get_sager_forecast(
         from wfpiconsole.config.models import ObservationHistory
         from sqlalchemy import select, desc
         
-        result = await db.execute(
+        result = db.execute(
             select(ObservationHistory)
             .order_by(desc(ObservationHistory.timestamp))
             .limit(24)
@@ -45,18 +47,43 @@ async def get_sager_forecast(
             }
         
         # Calculate Sager forecast based on pressure trend
-        pressures = [obs.pressure for obs in reversed(observations) if obs.pressure]
+        pressures = [obs.sea_level_pressure for obs in reversed(observations) if obs.sea_level_pressure is not None]
+
+        if len(pressures) < 4:
+            return {
+                "forecastCode": 10,
+                "forecastText": "Insufficient data for forecast",
+                "seaLevelPressureTrend": "Unknown",
+                "localTime": int(observations[0].timestamp.timestamp()) if observations and observations[0].timestamp else 0,
+            }
+
+        sager = SagerWeatherForecast(latitude=0)
+        forecast = None
+        ordered_observations = [obs for obs in reversed(observations) if obs.sea_level_pressure is not None]
+        for obs in ordered_observations:
+            forecast = sager.add_observation(obs.sea_level_pressure, obs.timestamp)
+
+        if forecast is None:
+            return {
+                "forecastCode": 10,
+                "forecastText": "Insufficient data for forecast",
+                "seaLevelPressureTrend": "Unknown",
+                "localTime": int(ordered_observations[-1].timestamp.timestamp()) if ordered_observations else 0,
+            }
         
-        sager = SagerForecast()
-        forecast_code = sager.get_forecast(pressures)
-        
-        latest = observations[0]
+        latest = ordered_observations[-1]
+
+        trend_lookup = {
+            "steady": 4,
+            "rising": 2,
+            "falling": 7,
+        }
         
         return {
-            "forecastCode": forecast_code,
-            "forecastText": SagerForecast.get_forecast_text(forecast_code),
-            "seaLevelPressureTrend": sager.get_trend_text(pressures),
-            "localTime": int(latest.timestamp) if latest.timestamp else 0,
+            "forecastCode": trend_lookup.get(forecast.pressure_trend or "steady", 10),
+            "forecastText": forecast.forecast_text,
+            "seaLevelPressureTrend": forecast.pressure_trend or "Unknown",
+            "localTime": int(latest.timestamp.timestamp()) if latest.timestamp else 0,
         }
     except Exception as e:
         return {
@@ -71,7 +98,7 @@ async def get_sager_forecast(
 @router.get("/astronomical")
 async def get_astronomical_data(
     current_user=Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
     """
     Get astronomical data (sunrise, sunset, moon phases, etc.)
@@ -81,7 +108,7 @@ async def get_astronomical_data(
         from sqlalchemy import select
         
         # Get station configuration for location
-        result = await db.execute(select(StationConfig))
+        result = db.execute(select(StationConfig))
         station = result.scalar_one_or_none()
         
         if not station:
@@ -98,19 +125,18 @@ async def get_astronomical_data(
         calc = AstronomicalCalculator(
             latitude=station.latitude or 0,
             longitude=station.longitude or 0,
-            elevation=station.elevation or 0,
         )
         
-        data = calc.get_all_data()
+        data = calc.calculate_astronomical_data(datetime.now(timezone.utc))
         
         return {
-            "sunriseTime": int(data["sunrise"]),
-            "sunsetTime": int(data["sunset"]),
-            "solarNoon": int(data["solar_noon"]),
-            "moonPhase": data.get("moon_phase", 0),
-            "moonIllumination": data.get("moon_illumination", 0),
-            "moonriseTime": int(data.get("moonrise", 0)) if data.get("moonrise") else None,
-            "moonsetTime": int(data.get("moonset", 0)) if data.get("moonset") else None,
+            "sunriseTime": int(data.sunrise.timestamp()) if data.sunrise else 0,
+            "sunsetTime": int(data.sunset.timestamp()) if data.sunset else 0,
+            "solarNoon": int(((data.sunrise.timestamp() + data.sunset.timestamp()) / 2)) if data.sunrise and data.sunset else 0,
+            "moonPhase": data.moon_phase or 0,
+            "moonIllumination": (data.moon_illumination or 0) / 100,
+            "moonriseTime": int(data.moonrise.timestamp()) if data.moonrise else None,
+            "moonsetTime": int(data.moonset.timestamp()) if data.moonset else None,
         }
     except Exception as e:
         return {

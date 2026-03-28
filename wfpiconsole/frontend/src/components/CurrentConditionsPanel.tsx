@@ -2,7 +2,7 @@
  * Current conditions display panel
  */
 
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Observation, CurrentConditions, StationInfo } from "../types";
 import { useSettings } from "../context/SettingsContext";
 import { useTemperatureConverter, useWindSpeedConverter } from "../hooks/useWeather";
@@ -11,29 +11,64 @@ import "./CurrentConditionsPanel.css";
 interface Props {
   observation: Observation | null;
   conditions: CurrentConditions | null;
+  rapidWind: {
+    timestamp: string;
+    wind_speed_mps: number | null;
+    wind_gust_mps: number | null;
+    wind_direction_deg: number | null;
+  } | null;
   station: StationInfo | null;
 }
 
 export default function CurrentConditionsPanel({
   observation,
   conditions,
+  rapidWind,
   station,
 }: Props) {
   const { settings } = useSettings();
   const convertTemp = useTemperatureConverter(settings?.temperatureUnit || "C");
   const convertWind = useWindSpeedConverter(settings?.windSpeedUnit || "m/s");
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  const windUpdatedSeconds = useMemo(() => {
+    if (!rapidWind?.timestamp) {
+      return null;
+    }
+
+    const ts = Date.parse(rapidWind.timestamp);
+    if (Number.isNaN(ts)) {
+      return null;
+    }
+    return Math.max(0, Math.floor((nowMs - ts) / 1000));
+  }, [rapidWind, nowMs]);
 
   if (!observation || !conditions) {
     return (
       <div className="current-conditions">
-        <div className="loading">Loading...</div>
+        <div className="loading">Waiting for live Tempest observations...</div>
       </div>
     );
   }
 
-  const temp = convertTemp(observation.temperature);
-  const feelsLike = convertTemp(conditions.feelsLike);
-  const windSpeed = convertWind(observation.windSpeed);
+  const temp = convertTemp(observation.temp_c);
+  const feelsLike = convertTemp(conditions.feels_like_c);
+  const windSpeed = convertWind(rapidWind?.wind_speed_mps ?? null);
+  const windGust = convertWind(rapidWind?.wind_gust_mps ?? null);
+  const windDirection = rapidWind?.wind_direction_deg ?? null;
+  const weatherDescription = conditions.uv_risk_level
+    ? `UV ${conditions.uv_risk_level}`
+    : "Live conditions";
 
   return (
     <div className="current-conditions">
@@ -46,7 +81,7 @@ export default function CurrentConditionsPanel({
             <span className="temp-unit">{settings?.temperatureUnit || "C"}</span>
           </div>
           <div className="temperature-details">
-            <p className="weather-description">{conditions.description}</p>
+            <p className="weather-description">{weatherDescription}</p>
             <p className="feels-like">
               Feels like {feelsLike !== null ? Math.round(feelsLike) : "--"}°
             </p>
@@ -54,7 +89,37 @@ export default function CurrentConditionsPanel({
         </div>
 
         <div className="weather-icon">
-          <WeatherIcon condition={conditions.description} />
+          <WeatherIcon condition={weatherDescription} />
+        </div>
+      </div>
+
+      <div className="live-wind-card">
+        <div className="live-wind-header">
+          <span className="live-dot" aria-hidden="true"></span>
+          <span className="live-label">Live Wind</span>
+          <span className="live-updated">
+            {windUpdatedSeconds !== null ? `Updated ${windUpdatedSeconds}s ago` : "Waiting for wind packets"}
+          </span>
+        </div>
+        <div className="live-wind-values">
+          <div className="live-wind-metric">
+            <span className="live-wind-metric-label">Speed</span>
+            <span className="live-wind-metric-value">
+              {windSpeed !== null ? Math.round(windSpeed * 10) / 10 : "--"} {settings?.windSpeedUnit || "m/s"}
+            </span>
+          </div>
+          <div className="live-wind-metric">
+            <span className="live-wind-metric-label">Gust</span>
+            <span className="live-wind-metric-value">
+              {windGust !== null ? Math.round(windGust * 10) / 10 : "--"} {settings?.windSpeedUnit || "m/s"}
+            </span>
+          </div>
+          <div className="live-wind-metric">
+            <span className="live-wind-metric-label">Direction</span>
+            <span className="live-wind-metric-value">
+              {getWindDirection(windDirection)}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -69,8 +134,8 @@ export default function CurrentConditionsPanel({
         <div className="condition-item">
           <span className="condition-label">Pressure</span>
           <span className="condition-value">
-            {observation.pressure !== null
-              ? Math.round(observation.pressure * 10) / 10
+            {observation.pressure_mb !== null
+              ? Math.round(observation.pressure_mb * 10) / 10
               : "--"}{" "}
             {settings?.pressureUnit || "mb"}
           </span>
@@ -85,40 +150,48 @@ export default function CurrentConditionsPanel({
         </div>
 
         <div className="condition-item">
+          <span className="condition-label">Wind Gust</span>
+          <span className="condition-value">
+            {windGust !== null ? Math.round(windGust * 10) / 10 : "--"}{" "}
+            {settings?.windSpeedUnit || "m/s"}
+          </span>
+        </div>
+
+        <div className="condition-item">
           <span className="condition-label">Wind Direction</span>
           <span className="condition-value">
-            {getWindDirection(observation.windDirection)}
+            {getWindDirection(windDirection)}
           </span>
         </div>
 
         <div className="condition-item">
           <span className="condition-label">Rainfall</span>
           <span className="condition-value">
-            {observation.rainfall !== null ? Math.round(observation.rainfall * 10) / 10 : "--"} mm
+            {observation.rainfall_mm !== null ? Math.round(observation.rainfall_mm * 10) / 10 : "--"} mm
           </span>
         </div>
 
         <div className="condition-item">
           <span className="condition-label">UV Index</span>
-          <span className={`condition-value uvi-${getUvCategory(conditions.uvIndex)}`}>
-            {conditions.uvIndex}
+          <span className={`condition-value uvi-${getUvCategory(conditions.uv_index ?? 0)}`}>
+            {conditions.uv_index ?? "--"}
           </span>
         </div>
 
         <div className="condition-item">
           <span className="condition-label">Solar Radiation</span>
           <span className="condition-value">
-            {observation.solarRadiation !== null
-              ? Math.round(observation.solarRadiation)
+            {observation.solar_radiation_wm2 !== null
+              ? Math.round(observation.solar_radiation_wm2)
               : "--"}{" "}
             W/m²
           </span>
         </div>
 
         <div className="condition-item">
-          <span className="condition-label">Visibility</span>
+          <span className="condition-label">Lightning</span>
           <span className="condition-value">
-            {conditions.visibility !== null ? Math.round(conditions.visibility) : "--"} km
+            {conditions.lightning_distance_km !== null ? Math.round(conditions.lightning_distance_km) : "--"} km
           </span>
         </div>
       </div>

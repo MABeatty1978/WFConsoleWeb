@@ -97,8 +97,10 @@ class UDPListenerService:
 
             # Create Observation object
             observation = Observation(
-                timestamp=datetime.utcnow(),
-                device_id=parsed.get("device_id", "unknown"),
+                timestamp=parsed.get("timestamp") or datetime.utcnow(),
+                packet_type=parsed.get("packet_type") or parsed.get("type"),
+                station_id=parsed.get("station_id"),
+                device_id=parsed.get("device_id") or "unknown",
                 air_temperature=parsed.get("air_temperature"),
                 relative_humidity=parsed.get("relative_humidity"),
                 sea_level_pressure=parsed.get("sea_level_pressure"),
@@ -107,10 +109,11 @@ class UDPListenerService:
                 wind_direction=parsed.get("wind_direction"),
                 rainfall_rate=parsed.get("rainfall_rate"),
                 rainfall_accumulated_last_1h=parsed.get("rainfall_accumulated_last_1h"),
+                rainfall_daily=parsed.get("rainfall_daily"),
                 solar_radiation=parsed.get("solar_radiation"),
                 uv_index=parsed.get("uv_index"),
                 lightning_strike_count_3h=parsed.get("lightning_strike_count_3h"),
-                lightning_strike_last_distance=parsed.get("lightning_strike_last_distance"),
+                lightning_strike_last_distance=parsed.get("lightning_strike_last_distance") or parsed.get("strike_distance"),
                 lightning_strike_last_time=parsed.get("lightning_strike_last_time"),
                 battery_voltage=parsed.get("battery_voltage"),
                 rssi=parsed.get("rssi"),

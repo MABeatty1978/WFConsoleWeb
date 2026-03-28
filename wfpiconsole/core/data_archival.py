@@ -167,11 +167,13 @@ class DataArchivalManager:
                         "wind_gust": obs.wind_gust,
                         "wind_direction": obs.wind_direction,
                         "rainfall_rate": obs.rainfall_rate,
+                        "rainfall_daily": obs.rainfall_daily,
                         "solar_radiation": obs.solar_radiation,
                         "uv_index": obs.uv_index,
-                        "lightning_strike_count_3h": obs.lightning_strike_count_3h,
-                        "lightning_strike_last_distance": obs.lightning_strike_last_distance,
+                        "lightning_strike_count_3h": obs.lightning_strike_count,
+                        "lightning_strike_last_distance": obs.lightning_avg_distance,
                         "battery_voltage": obs.battery_voltage,
+                        "rssi": obs.rssi,
                     }
                 )
 
@@ -225,16 +227,16 @@ class DataArchivalManager:
                 "max": max(humidities) if humidities else None,
             },
             "pressure": {
-                "avg": sum(pressures) / len(pressures) if pressures else None,
-                "min": min(pressures) if pressures else None,
-                "max": max(pressures) if pressures else None,
+                "avg_mb": sum(pressures) / len(pressures) if pressures else None,
+                "min_mb": min(pressures) if pressures else None,
+                "max_mb": max(pressures) if pressures else None,
             },
             "wind": {
-                "avg_speed": sum(wind_speeds) / len(wind_speeds) if wind_speeds else None,
-                "max_speed": max(wind_speeds) if wind_speeds else None,
-                "max_gust": max(wind_gusts) if wind_gusts else None,
+                "avg_mps": sum(wind_speeds) / len(wind_speeds) if wind_speeds else None,
+                "max_mps": max(wind_speeds) if wind_speeds else None,
+                "max_gust_mps": max(wind_gusts) if wind_gusts else None,
             },
-            "rainfall_total_mm": sum(o.rainfall_mm for o in observations if o.rainfall_mm is not None),
+            "rainfall_total_mm": sum(o.rainfall_rate for o in observations if o.rainfall_rate is not None),
         }
 
 
