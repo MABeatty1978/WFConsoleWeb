@@ -178,11 +178,20 @@ def create_app() -> FastAPI:
             "release_date": "2024-01-01",
         }
 
-    # Check if frontend build exists and serve it
-    frontend_static = Path(__file__).parent.parent / "frontend" / "public"
-    if frontend_static.exists() and (frontend_static / "static").exists():
-        # Mount static files from built React app - html=True serves index.html for missing routes
+    # Prefer the compiled React build; fall back to public for development assets.
+    frontend_build = Path(__file__).parent.parent / "frontend" / "build"
+    frontend_public = Path(__file__).parent.parent / "frontend" / "public"
+
+    frontend_static = None
+    if frontend_build.exists() and (frontend_build / "index.html").exists():
+        frontend_static = frontend_build
         logger.info(f"Serving built React frontend from {frontend_static}")
+    elif frontend_public.exists() and (frontend_public / "index.html").exists():
+        frontend_static = frontend_public
+        logger.info(f"Serving frontend public assets from {frontend_static}")
+
+    if frontend_static is not None:
+        # html=True serves index.html for SPA routes.
         app.mount("/", StaticFiles(directory=str(frontend_static), html=True), name="static")
     else:
         # Fallback if frontend not built
