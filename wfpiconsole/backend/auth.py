@@ -13,8 +13,8 @@ from wfpiconsole.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
-# Password hashing configuration
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing configuration. Use pbkdf2_sha256 for compatibility across environments.
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 # HTTP Bearer security
 security = HTTPBearer()

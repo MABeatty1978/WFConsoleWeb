@@ -1,7 +1,7 @@
 """Authentication routes for login, logout, and token management"""
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -35,6 +35,7 @@ class UserResponse(BaseModel):
     """User information (safe to send to client)."""
 
     username: str
+    role: str = "admin"
     created_at: str
 
 
@@ -42,7 +43,7 @@ class UserResponse(BaseModel):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(credentials: LoginRequest, db: Session = Depends(get_db)):
+async def login(request: Request, db: Session = Depends(get_db)):
     """
     Authenticate user and return JWT token.
 
@@ -56,6 +57,22 @@ async def login(credentials: LoginRequest, db: Session = Depends(get_db)):
         HTTPException if credentials are invalid
     """
     try:
+        content_type = request.headers.get("content-type", "")
+        if "application/json" in content_type:
+            payload = await request.json()
+        elif "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
+            payload = dict(await request.form())
+        else:
+            try:
+                payload = await request.json()
+            except Exception:
+                payload = {}
+
+        credentials = LoginRequest(
+            username=payload.get("username", ""),
+            password=payload.get("password", ""),
+        )
+
         # Find user by username
         user = db.query(AdminUser).filter(AdminUser.username == credentials.username).first()
 
@@ -113,7 +130,7 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user), 
             detail="User not found",
         )
 
-    return UserResponse(username=user.username, created_at=user.created_at.isoformat())
+    return UserResponse(username=user.username, role="admin", created_at=user.created_at.isoformat())
 
 
 @router.post("/refresh")
