@@ -6,6 +6,11 @@ from pathlib import Path
 from pydantic_settings import BaseSettings
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_DATABASE_URL = f"sqlite:///{(PROJECT_ROOT / 'wfpiconsole.db').as_posix()}"
+DEFAULT_DATA_DIR = PROJECT_ROOT / "data"
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables or .env file"""
 
@@ -20,7 +25,7 @@ class Settings(BaseSettings):
     reload: bool = False
 
     # Database
-    database_url: str = os.getenv("DATABASE_URL", "sqlite:///./wfpiconsole.db")
+    database_url: str = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
     database_echo: bool = False
 
     # JWT & Security
@@ -35,7 +40,7 @@ class Settings(BaseSettings):
     kofi_profile_url: str = os.getenv("KOFI_PROFILE_URL", "https://ko-fi.com/")
 
     # Data Storage
-    data_directory: Path = Path(os.getenv("DATA_DIR", "./data"))
+    data_directory: Path = Path(os.getenv("DATA_DIR", str(DEFAULT_DATA_DIR)))
     max_historical_days: int = int(os.getenv("MAX_HISTORICAL_DAYS", "365"))
 
     # UDP Server (Tempest local broadcast)
