@@ -207,7 +207,8 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-if __name__ == "__main__":
+def main():
+    """Entry point for wfpiconsole-web command."""
     import uvicorn
 
     settings = get_settings()
@@ -215,6 +216,10 @@ if __name__ == "__main__":
         "wfpiconsole.backend.main:app",
         host=settings.host,
         port=settings.port,
-        reload=True,
+        reload=False,
         log_level="info",
     )
+
+
+if __name__ == "__main__":
+    main()
