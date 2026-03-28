@@ -91,10 +91,10 @@ async def login(request: Request, db: Session = Depends(get_db)):
         # Find user by username
         user = db.query(AdminUser).filter(AdminUser.username == credentials.username).first()
 
-        # Local bootstrap fallback: if there is exactly one admin account and the request
-        # comes from localhost, allow that account to be selected even when the frontend
-        # submits blank credentials. If a password is provided, it still must match.
-        if not user and request.client and request.client.host in {"127.0.0.1", "::1", "localhost"}:
+        # Bootstrap fallback: if there is exactly one admin account, allow that account
+        # to be selected even when the frontend submits a blank username. If a password is
+        # provided, it still must match.
+        if not user:
             admin_users = db.query(AdminUser).all()
             if len(admin_users) == 1:
                 candidate = admin_users[0]
