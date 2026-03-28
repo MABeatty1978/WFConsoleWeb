@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware import gzip
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from wfpiconsole.config.settings import get_settings
@@ -182,17 +182,40 @@ def create_app() -> FastAPI:
     frontend_build = Path(__file__).parent.parent / "frontend" / "build"
     frontend_public = Path(__file__).parent.parent / "frontend" / "public"
 
-    frontend_static = None
+    frontend_root = None
+    static_root = None
     if frontend_build.exists() and (frontend_build / "index.html").exists():
-        frontend_static = frontend_build
-        logger.info(f"Serving built React frontend from {frontend_static}")
+        frontend_root = frontend_build
+        static_root = frontend_build / "static"
+        logger.info(f"Serving built React frontend from {frontend_root}")
     elif frontend_public.exists() and (frontend_public / "index.html").exists():
-        frontend_static = frontend_public
-        logger.info(f"Serving frontend public assets from {frontend_static}")
+        frontend_root = frontend_public
+        static_root = frontend_public / "static"
+        logger.info(f"Serving frontend public assets from {frontend_root}")
 
-    if frontend_static is not None:
-        # html=True serves index.html for SPA routes.
-        app.mount("/", StaticFiles(directory=str(frontend_static), html=True), name="static")
+    if frontend_root is not None:
+        if static_root.exists():
+            app.mount("/static", StaticFiles(directory=str(static_root)), name="static")
+
+        @app.get("/", include_in_schema=False)
+        async def frontend_index():
+            """Serve the React application entry point."""
+            return FileResponse(frontend_root / "index.html")
+
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def frontend_spa(full_path: str):
+            """Serve React index.html for client-side routes."""
+            if full_path.startswith("api/") or full_path.startswith("ws/") or full_path == "health":
+                return JSONResponse(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    content={"detail": "Not Found"},
+                )
+
+            requested_file = frontend_root / full_path
+            if requested_file.is_file():
+                return FileResponse(requested_file)
+
+            return FileResponse(frontend_root / "index.html")
     else:
         # Fallback if frontend not built
         @app.get("/", include_in_schema=False)
