@@ -160,17 +160,17 @@ class DataArchivalManager:
                 data["observations"].append(
                     {
                         "timestamp": obs.timestamp.isoformat(),
-                        "temp_c": obs.temp_c,
-                        "humidity": obs.humidity,
-                        "pressure_mb": obs.pressure_mb,
-                        "wind_speed_mps": obs.wind_speed_mps,
-                        "wind_gust_mps": obs.wind_gust_mps,
-                        "wind_direction_deg": obs.wind_direction_deg,
-                        "rainfall_mm": obs.rainfall_mm,
-                        "solar_radiation_wm2": obs.solar_radiation_wm2,
+                        "air_temperature": obs.air_temperature,
+                        "relative_humidity": obs.relative_humidity,
+                        "sea_level_pressure": obs.sea_level_pressure,
+                        "wind_speed": obs.wind_speed,
+                        "wind_gust": obs.wind_gust,
+                        "wind_direction": obs.wind_direction,
+                        "rainfall_rate": obs.rainfall_rate,
+                        "solar_radiation": obs.solar_radiation,
                         "uv_index": obs.uv_index,
-                        "lightning_strike_count": obs.lightning_strike_count,
-                        "lightning_strike_last_distance_km": obs.lightning_strike_last_distance_km,
+                        "lightning_strike_count_3h": obs.lightning_strike_count_3h,
+                        "lightning_strike_last_distance": obs.lightning_strike_last_distance,
                         "battery_voltage": obs.battery_voltage,
                     }
                 )
@@ -205,11 +205,11 @@ class DataArchivalManager:
         if not observations:
             return {}
 
-        temps = [o.temp_c for o in observations if o.temp_c is not None]
-        humidities = [o.humidity for o in observations if o.humidity is not None]
-        pressures = [o.pressure_mb for o in observations if o.pressure_mb is not None]
-        wind_speeds = [o.wind_speed_mps for o in observations if o.wind_speed_mps is not None]
-        wind_gusts = [o.wind_gust_mps for o in observations if o.wind_gust_mps is not None]
+        temps = [o.air_temperature for o in observations if o.air_temperature is not None]
+        humidities = [o.relative_humidity for o in observations if o.relative_humidity is not None]
+        pressures = [o.sea_level_pressure for o in observations if o.sea_level_pressure is not None]
+        wind_speeds = [o.wind_speed for o in observations if o.wind_speed is not None]
+        wind_gusts = [o.wind_gust for o in observations if o.wind_gust is not None]
 
         return {
             "timestamp": observations[0].timestamp.isoformat(),

@@ -29,19 +29,20 @@ class ObservationResponse(BaseModel):
 
     timestamp: str
     device_id: str
-    temp_c: Optional[float]
-    humidity: Optional[float]
-    pressure_mb: Optional[float]
-    wind_speed_mps: Optional[float]
-    wind_gust_mps: Optional[float]
-    wind_direction_deg: Optional[float]
-    rainfall_mm: Optional[float]
-    solar_radiation_wm2: Optional[float]
+    air_temperature: Optional[float]
+    relative_humidity: Optional[float]
+    sea_level_pressure: Optional[float]
+    wind_speed: Optional[float]
+    wind_gust: Optional[float]
+    wind_direction: Optional[int]
+    rainfall_rate: Optional[float]
+    rainfall_accumulated_last_1h: Optional[float]
+    solar_radiation: Optional[float]
     uv_index: Optional[float]
-    lightning_strike_count: Optional[int]
-    lightning_strike_last_distance_km: Optional[float]
+    lightning_strike_count_3h: Optional[int]
+    lightning_strike_last_distance: Optional[float]
     battery_voltage: Optional[float]
-    signal_strength: Optional[int]
+    rssi: Optional[int]
 
 
 class StationInfoResponse(BaseModel):
@@ -112,19 +113,20 @@ async def get_latest_observation(db: Session = Depends(get_db)):
     return ObservationResponse(
         timestamp=latest.timestamp.isoformat(),
         device_id=latest.device_id,
-        temp_c=latest.temp_c,
-        humidity=latest.humidity,
-        pressure_mb=latest.pressure_mb,
-        wind_speed_mps=latest.wind_speed_mps,
-        wind_gust_mps=latest.wind_gust_mps,
-        wind_direction_deg=latest.wind_direction_deg,
-        rainfall_mm=latest.rainfall_mm,
-        solar_radiation_wm2=latest.solar_radiation_wm2,
+        air_temperature=latest.air_temperature,
+        relative_humidity=latest.relative_humidity,
+        sea_level_pressure=latest.sea_level_pressure,
+        wind_speed=latest.wind_speed,
+        wind_gust=latest.wind_gust,
+        wind_direction=latest.wind_direction,
+        rainfall_rate=latest.rainfall_rate,
+        rainfall_accumulated_last_1h=latest.rainfall_accumulated_last_1h,
+        solar_radiation=latest.solar_radiation,
         uv_index=latest.uv_index,
-        lightning_strike_count=latest.lightning_strike_count,
-        lightning_strike_last_distance_km=latest.lightning_strike_last_distance_km,
+        lightning_strike_count_3h=latest.lightning_strike_count_3h,
+        lightning_strike_last_distance=latest.lightning_strike_last_distance,
         battery_voltage=latest.battery_voltage,
-        signal_strength=latest.signal_strength,
+        rssi=latest.rssi,
     )
 
 
@@ -144,19 +146,19 @@ async def get_current_conditions(db: Session = Depends(get_db)):
         return None
 
     # Temperature conversions
-    temp_c = latest.temp_c
+    temp_c = latest.air_temperature
     temp_f = convert_temperature(temp_c, "C", "F") if temp_c is not None else None
 
     # Feels like calculation
     feels_like_c = (
-        calculate_feels_like_temperature(temp_c, latest.wind_speed_mps, latest.humidity)
+        calculate_feels_like_temperature(temp_c, latest.wind_speed, latest.relative_humidity)
         if temp_c is not None
         else None
     )
     feels_like_f = convert_temperature(feels_like_c, "C", "F") if feels_like_c is not None else None
 
     # Wind conversions
-    wind_mps = latest.wind_speed_mps
+    wind_mps = latest.wind_speed
     wind_mph = wind_mps * 2.23694 if wind_mps is not None else None
     wind_gust_mph = latest.wind_gust_mps * 2.23694 if latest.wind_gust_mps is not None else None
 
@@ -238,19 +240,20 @@ async def update_observation(observation: dict, db: Session = Depends(get_db)):
         obs = ObservationHistory(
             timestamp=datetime.utcnow(),
             device_id=observation.get("device_id", "unknown"),
-            temp_c=observation.get("temp_c"),
-            humidity=observation.get("humidity"),
-            pressure_mb=observation.get("pressure_mb"),
-            wind_speed_mps=observation.get("wind_speed_mps"),
-            wind_gust_mps=observation.get("wind_gust_mps"),
-            wind_direction_deg=observation.get("wind_direction_deg"),
-            rainfall_mm=observation.get("rainfall_mm", 0),
-            solar_radiation_wm2=observation.get("solar_radiation_wm2"),
+            air_temperature=observation.get("air_temperature"),
+            relative_humidity=observation.get("relative_humidity"),
+            sea_level_pressure=observation.get("sea_level_pressure"),
+            wind_speed=observation.get("wind_speed"),
+            wind_gust=observation.get("wind_gust"),
+            wind_direction=observation.get("wind_direction"),
+            rainfall_rate=observation.get("rainfall_rate"),
+            rainfall_daily=observation.get("rainfall_daily"),
+            solar_radiation=observation.get("solar_radiation"),
             uv_index=observation.get("uv_index"),
             lightning_strike_count=observation.get("lightning_strike_count", 0),
-            lightning_strike_last_distance_km=observation.get("lightning_strike_last_distance_km"),
+            lightning_avg_distance=observation.get("lightning_strike_last_distance"),
             battery_voltage=observation.get("battery_voltage"),
-            signal_strength=observation.get("signal_strength"),
+            rssi=observation.get("rssi"),
         )
 
         db.add(obs)
@@ -298,12 +301,12 @@ async def get_observation_stats(
         return {"observation_count": 0}
 
     # Calculate statistics
-    temps = [o.temp_c for o in observations if o.temp_c is not None]
-    humidities = [o.humidity for o in observations if o.humidity is not None]
-    pressures = [o.pressure_mb for o in observations if o.pressure_mb is not None]
-    winds = [o.wind_speed_mps for o in observations if o.wind_speed_mps is not None]
-    gusts = [o.wind_gust_mps for o in observations if o.wind_gust_mps is not None]
-    rainfall_total = sum(o.rainfall_mm for o in observations if o.rainfall_mm is not None)
+    temps = [o.air_temperature for o in observations if o.air_temperature is not None]
+    humidities = [o.relative_humidity for o in observations if o.relative_humidity is not None]
+    pressures = [o.sea_level_pressure for o in observations if o.sea_level_pressure is not None]
+    winds = [o.wind_speed for o in observations if o.wind_speed is not None]
+    gusts = [o.wind_gust for o in observations if o.wind_gust is not None]
+    rainfall_total = sum(o.rainfall_daily or 0 for o in observations)
 
     return {
         "observation_count": len(observations),

@@ -118,15 +118,15 @@ class AlertManager:
     def _get_metric_value(observation: Observation, metric: str) -> Optional[float]:
         """Extract metric value from observation."""
         metric_map = {
-            "temperature": observation.temp_c,
-            "humidity": observation.humidity,
-            "pressure": observation.pressure_mb,
-            "wind_speed": observation.wind_speed_mps,
-            "wind_gust": observation.wind_gust_mps,
+            "temperature": observation.air_temperature,
+            "humidity": observation.relative_humidity,
+            "pressure": observation.sea_level_pressure,
+            "wind_speed": observation.wind_speed,
+            "wind_gust": observation.wind_gust,
             "uv_index": observation.uv_index,
-            "solar_radiation": observation.solar_radiation_wm2,
-            "rainfall": observation.rainfall_mm,
-            "lightning_distance": observation.lightning_strike_last_distance_km,
+            "solar_radiation": observation.solar_radiation,
+            "rainfall": observation.rainfall_rate,
+            "lightning_distance": observation.lightning_strike_last_distance,
             "battery": observation.battery_voltage,
         }
         return metric_map.get(metric)
