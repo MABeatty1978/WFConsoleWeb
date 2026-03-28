@@ -26,14 +26,18 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
 
-    if (!username || !password) {
+    const formData = new FormData(e.currentTarget as HTMLFormElement);
+    const submittedUsername = String(formData.get("username") || username).trim();
+    const submittedPassword = String(formData.get("password") || password);
+
+    if (!submittedUsername || !submittedPassword) {
       setError("Please enter username and password");
       return;
     }
 
     try {
       setIsLoading(true);
-      await login(username, password);
+      await login(submittedUsername, submittedPassword);
       navigate("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
@@ -67,11 +71,13 @@ export default function LoginPage() {
               <input
                 type="text"
                 id="username"
+                name="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter your username"
                 disabled={isLoading}
                 autoFocus
+                autoComplete="username"
               />
             </div>
 
@@ -80,10 +86,12 @@ export default function LoginPage() {
               <input
                 type="password"
                 id="password"
+                name="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
                 disabled={isLoading}
+                autoComplete="current-password"
               />
             </div>
 
