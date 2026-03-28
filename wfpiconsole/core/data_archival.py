@@ -1,6 +1,7 @@
 """Historical data archival and retention management"""
 import logging
 from datetime import datetime, timedelta
+from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 

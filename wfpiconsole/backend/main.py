@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZIPMiddleware
+from fastapi.middleware import gzip
 from fastapi.responses import JSONResponse
 
 from wfpiconsole.config.settings import get_settings
@@ -89,7 +89,7 @@ def create_app() -> FastAPI:
     )
 
     # Add GZIP compression for responses
-    app.add_middleware(GZIPMiddleware, minimum_size=1000)
+    app.add_middleware(gzip.GZipMiddleware, minimum_size=1000)
 
     # Include routers
     app.include_router(auth_router)

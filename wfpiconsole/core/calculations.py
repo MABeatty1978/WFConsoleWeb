@@ -254,3 +254,49 @@ class WeatherCalculations:
                 return i, description
 
         return len(beaufort_scale) - 1, beaufort_scale[-1][1]
+
+
+# Module-level function wrappers for backward compatibility
+def calculate_dew_point(temperature: float, humidity: float) -> float:
+    """Calculate dew point. See WeatherCalculations.calculate_dew_point for details."""
+    return WeatherCalculations.calculate_dew_point(temperature, humidity)
+
+
+def calculate_feels_like_temperature(
+    temperature: float,
+    humidity: float,
+    wind_speed: float,
+) -> float:
+    """Calculate feels-like temperature. See WeatherCalculations for details."""
+    return WeatherCalculations.calculate_feels_like_temperature(temperature, humidity, wind_speed)
+
+
+def calculate_wind_chill(temperature: float, wind_speed: float) -> float:
+    """Calculate wind chill. See WeatherCalculations.calculate_wind_chill for details."""
+    return WeatherCalculations.calculate_wind_chill(temperature, wind_speed)
+
+
+def calculate_heat_index(temperature: float, humidity: float) -> float:
+    """Calculate heat index. See WeatherCalculations.calculate_heat_index for details."""
+    return WeatherCalculations.calculate_heat_index(temperature, humidity)
+
+
+def calculate_absolute_humidity(temperature: float, humidity: float) -> float:
+    """Calculate absolute humidity. See WeatherCalculations for details."""
+    return WeatherCalculations.calculate_absolute_humidity(temperature, humidity)
+
+
+def convert_temperature(value: float, from_unit: str, to_unit: str) -> float:
+    """Convert temperature between units. See WeatherCalculations for details."""
+    return WeatherCalculations.convert_temperature(value, from_unit, to_unit)
+
+
+def calculate_uv_risk_level(uv_index: Optional[float]) -> str:
+    """Get UV risk level. See WeatherCalculations for details."""
+    return WeatherCalculations.calculate_uv_risk_level(uv_index)
+
+
+def get_beaufort_scale(wind_speed_ms: float) -> tuple[int, str]:
+    """Get Beaufort scale. See WeatherCalculations for details."""
+    return WeatherCalculations.get_beaufort_scale(wind_speed_ms)
+

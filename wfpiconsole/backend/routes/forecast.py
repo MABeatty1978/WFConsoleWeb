@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from wfpiconsole.backend.dependencies import get_db, get_current_user
-from wfpiconsole.config.database import get_db_session
+from wfpiconsole.config.database import get_db
 from wfpiconsole.core.astronomical import AstronomicalCalculator
 from wfpiconsole.core.sager import SagerForecast
 

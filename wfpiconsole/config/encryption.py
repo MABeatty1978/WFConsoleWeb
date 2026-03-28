@@ -4,7 +4,7 @@ from typing import Tuple
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import base64
 
 from wfpiconsole.config.settings import settings
@@ -32,7 +32,7 @@ class EncryptionManager:
 
         # Use PBKDF2 to derive a key from the master password
         salt = b"wfconsole_salt"  # In production, you might want to store salt per user
-        kdf = PBKDF2(
+        kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt,
