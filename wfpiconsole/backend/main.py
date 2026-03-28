@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware import gzip
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from wfpiconsole.config.settings import get_settings
@@ -178,29 +178,28 @@ def create_app() -> FastAPI:
             "release_date": "2024-01-01",
         }
 
-    # Root endpoint - serve frontend
-    @app.get("/", include_in_schema=False)
-    async def root():
-        """Serve the frontend application."""
-        frontend_dir = Path(__file__).parent.parent / "frontend" / "public"
-        index_file = frontend_dir / "index.html"
-        
-        if index_file.exists():
-            return FileResponse(index_file, media_type="text/html")
-        else:
+    # Check if frontend build exists and serve it
+    frontend_static = Path(__file__).parent.parent / "frontend" / "public"
+    if frontend_static.exists() and (frontend_static / "static").exists():
+        # Mount static files from built React app - html=True serves index.html for missing routes
+        logger.info(f"Serving built React frontend from {frontend_static}")
+        app.mount("/", StaticFiles(directory=str(frontend_static), html=True), name="static")
+    else:
+        # Fallback if frontend not built
+        @app.get("/", include_in_schema=False)
+        async def root_fallback():
+            """Fallback when frontend is not built."""
+            logger.warning("Frontend not found - serving fallback API info. Build frontend with: npm run build")
             return JSONResponse(
                 status_code=status.HTTP_200_OK,
                 content={
                     "message": "WFConsoleWeb API",
                     "version": "0.1.0a1",
+                    "status": "Frontend not built",
+                    "build_command": "npm run build in wfpiconsole/frontend directory",
                     "docs": "/api/docs",
                 },
             )
-
-    # Serve static files from frontend/public
-    frontend_static = Path(__file__).parent.parent / "frontend" / "public"
-    if frontend_static.exists():
-        app.mount("/", StaticFiles(directory=str(frontend_static), html=True), name="static")
 
     # 500 error handler
     @app.exception_handler(Exception)
