@@ -1,5 +1,7 @@
 """Authentication routes for login, logout, and token management"""
+import json
 import logging
+from urllib.parse import parse_qs
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -58,15 +60,28 @@ async def login(request: Request, db: Session = Depends(get_db)):
     """
     try:
         content_type = request.headers.get("content-type", "")
-        if "application/json" in content_type:
-            payload = await request.json()
-        elif "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
+        payload = {}
+
+        if "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
             payload = dict(await request.form())
         else:
+            raw_body = await request.body()
+            if raw_body:
+                try:
+                    payload = json.loads(raw_body)
+                except json.JSONDecodeError:
+                    parsed_qs = parse_qs(raw_body.decode("utf-8"), keep_blank_values=True)
+                    payload = {key: values[0] if values else "" for key, values in parsed_qs.items()}
+
+        if isinstance(payload, str):
             try:
-                payload = await request.json()
-            except Exception:
-                payload = {}
+                payload = json.loads(payload)
+            except json.JSONDecodeError:
+                parsed_qs = parse_qs(payload, keep_blank_values=True)
+                payload = {key: values[0] if values else "" for key, values in parsed_qs.items()}
+
+        if not isinstance(payload, dict):
+            payload = {}
 
         credentials = LoginRequest(
             username=payload.get("username", ""),
