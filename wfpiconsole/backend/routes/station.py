@@ -29,20 +29,19 @@ class ObservationResponse(BaseModel):
 
     timestamp: str
     device_id: str
-    air_temperature: Optional[float]
-    relative_humidity: Optional[float]
-    sea_level_pressure: Optional[float]
-    wind_speed: Optional[float]
-    wind_gust: Optional[float]
-    wind_direction: Optional[int]
-    rainfall_rate: Optional[float]
-    rainfall_accumulated_last_1h: Optional[float]
-    solar_radiation: Optional[float]
+    temp_c: Optional[float]
+    humidity: Optional[float]
+    pressure_mb: Optional[float]
+    wind_speed_mps: Optional[float]
+    wind_gust_mps: Optional[float]
+    wind_direction_deg: Optional[int]
+    rainfall_mm: Optional[float]
+    solar_radiation_wm2: Optional[float]
     uv_index: Optional[float]
-    lightning_strike_count_3h: Optional[int]
-    lightning_strike_last_distance: Optional[float]
+    lightning_strike_count: Optional[int]
+    lightning_strike_last_distance_km: Optional[float]
     battery_voltage: Optional[float]
-    rssi: Optional[int]
+    signal_strength: Optional[int]
 
 
 class StationInfoResponse(BaseModel):
@@ -103,6 +102,7 @@ async def get_station_info(station: StationConfig = Depends(require_station_conf
 
 
 @router.get("/latest-observation", response_model=Optional[ObservationResponse])
+@router.get("/observations", response_model=Optional[ObservationResponse])
 async def get_latest_observation(db: Session = Depends(get_db)):
     """Get the latest observation from database."""
     latest = db.query(ObservationHistory).order_by(ObservationHistory.timestamp.desc()).first()
@@ -113,20 +113,19 @@ async def get_latest_observation(db: Session = Depends(get_db)):
     return ObservationResponse(
         timestamp=latest.timestamp.isoformat(),
         device_id=latest.device_id,
-        air_temperature=latest.air_temperature,
-        relative_humidity=latest.relative_humidity,
-        sea_level_pressure=latest.sea_level_pressure,
-        wind_speed=latest.wind_speed,
-        wind_gust=latest.wind_gust,
-        wind_direction=latest.wind_direction,
-        rainfall_rate=latest.rainfall_rate,
-        rainfall_accumulated_last_1h=latest.rainfall_accumulated_last_1h,
-        solar_radiation=latest.solar_radiation,
+        temp_c=latest.air_temperature,
+        humidity=latest.relative_humidity,
+        pressure_mb=latest.sea_level_pressure,
+        wind_speed_mps=latest.wind_speed,
+        wind_gust_mps=latest.wind_gust,
+        wind_direction_deg=latest.wind_direction,
+        rainfall_mm=latest.rainfall_rate,
+        solar_radiation_wm2=latest.solar_radiation,
         uv_index=latest.uv_index,
-        lightning_strike_count_3h=latest.lightning_strike_count_3h,
-        lightning_strike_last_distance=latest.lightning_strike_last_distance,
+        lightning_strike_count=latest.lightning_strike_count,
+        lightning_strike_last_distance_km=latest.lightning_avg_distance,
         battery_voltage=latest.battery_voltage,
-        rssi=latest.rssi,
+        signal_strength=latest.rssi,
     )
 
 
@@ -160,14 +159,14 @@ async def get_current_conditions(db: Session = Depends(get_db)):
     # Wind conversions
     wind_mps = latest.wind_speed
     wind_mph = wind_mps * 2.23694 if wind_mps is not None else None
-    wind_gust_mph = latest.wind_gust_mps * 2.23694 if latest.wind_gust_mps is not None else None
+    wind_gust_mph = latest.wind_gust * 2.23694 if latest.wind_gust is not None else None
 
     # Rainfall conversions
-    rain_mm = latest.rainfall_mm
+    rain_mm = latest.rainfall_rate
     rain_in = rain_mm / 25.4 if rain_mm is not None else None
 
     # Wind direction (cardinal)
-    wind_dir = latest.wind_direction_deg if latest.wind_direction_deg is not None else 0
+    wind_dir = latest.wind_direction if latest.wind_direction is not None else 0
     cardinal_directions = [
         "N",
         "NNE",
@@ -208,22 +207,22 @@ async def get_current_conditions(db: Session = Depends(get_db)):
         temperature_f=temp_f,
         feels_like_c=feels_like_c,
         feels_like_f=feels_like_f,
-        humidity=latest.humidity,
-        pressure_mb=latest.pressure_mb,
+        humidity=latest.relative_humidity,
+        pressure_mb=latest.sea_level_pressure,
         wind_speed_mps=wind_mps,
         wind_speed_mph=wind_mph,
-        wind_gust_mps=latest.wind_gust_mps,
+        wind_gust_mps=latest.wind_gust,
         wind_gust_mph=wind_gust_mph,
         wind_direction_deg=wind_dir,
         wind_direction_cardinal=cardinal,
         rainfall_mm=rain_mm,
         rainfall_in=rain_in,
-        solar_radiation_wm2=latest.solar_radiation_wm2,
+        solar_radiation_wm2=latest.solar_radiation,
         uv_index=latest.uv_index,
         uv_risk_level=uv_risk,
-        lightning_distance_km=latest.lightning_strike_last_distance_km,
+        lightning_distance_km=latest.lightning_avg_distance,
         battery_status=battery_status,
-        signal_strength=latest.signal_strength,
+        signal_strength=latest.rssi,
         observation_timestamp=latest.timestamp.isoformat(),
     )
 
@@ -247,10 +246,10 @@ async def update_observation(observation: dict, db: Session = Depends(get_db)):
             wind_gust=observation.get("wind_gust"),
             wind_direction=observation.get("wind_direction"),
             rainfall_rate=observation.get("rainfall_rate"),
-            rainfall_daily=observation.get("rainfall_daily"),
+            rainfall_daily=observation.get("rainfall_daily", observation.get("rainfall_accumulated_last_1h")),
             solar_radiation=observation.get("solar_radiation"),
             uv_index=observation.get("uv_index"),
-            lightning_strike_count=observation.get("lightning_strike_count", 0),
+            lightning_strike_count=observation.get("lightning_strike_count_3h", observation.get("lightning_strike_count", 0)),
             lightning_avg_distance=observation.get("lightning_strike_last_distance"),
             battery_voltage=observation.get("battery_voltage"),
             rssi=observation.get("rssi"),
