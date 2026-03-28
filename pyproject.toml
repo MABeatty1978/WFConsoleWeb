@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wfconsoleweb"
+version = "0.1.0a1"
+description = "Web interface for the Tempest weather station by WeatherFlow"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "WFConsoleWeb Contributors"}
+]
+keywords = [
+    "weather",
+    "tempest",
+    "weatherflow",
+    "pi",
+    "raspberry-pi",
+    "web",
+    "dashboard"
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "Topic :: Home Automation",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/WFConsoleWeb"
+"Bug Tracker" = "https://github.com/yourusername/WFConsoleWeb/issues"
+"Source Code" = "https://github.com/yourusername/WFConsoleWeb"
+
+[project.scripts]
+wfpiconsole-web = "wfpiconsole.backend.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["wfpiconsole*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py39', 'py310', 'py311']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+addopts = "-v --tb=short"

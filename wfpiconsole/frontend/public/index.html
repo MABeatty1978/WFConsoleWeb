@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1e1e1e" />
+    <meta
+      name="description"
+      content="WFConsoleWeb - A modern web-based weather dashboard for Tempest weather stations"
+    />
+    <title>Weather Dashboard</title>
+    <script>
+      // Prevent flash of unstyled content
+      const theme = localStorage.getItem('theme') || 'dark-minimalist';
+      const themeStyles = {
+        'dark-minimalist': {
+          primary: '#1e1e1e',
+          secondary: '#2d2d2d',
+          accent: '#00d4ff',
+          background: '#0a0a0a',
+          text: '#ffffff',
+        },
+        'glass-morphism': {
+          primary: 'rgba(255, 255, 255, 0.1)',
+          secondary: 'rgba(255, 255, 255, 0.2)',
+          accent: '#64b5f6',
+          background: 'rgba(30, 30, 30, 0.8)',
+          text: '#ffffff',
+        },
+        'scientific-dashboard': {
+          primary: '#001a33',
+          secondary: '#003366',
+          accent: '#00ff99',
+          background: '#000d1a',
+          text: '#00ff99',
+        },
+        'weather-realistic': {
+          primary: '#1976d2',
+          secondary: '#1565c0',
+          accent: '#ffd54f',
+          background: '#0d47a1',
+          text: '#ffffff',
+        },
+      };
+      
+      const colors = themeStyles[theme] || themeStyles['dark-minimalist'];
+      document.documentElement.style.backgroundColor = colors.background;
+    </script>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>

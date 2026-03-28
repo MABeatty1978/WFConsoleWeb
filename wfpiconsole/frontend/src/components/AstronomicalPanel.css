@@ -1,0 +1,232 @@
+/**
+ * Astronomical panel styles
+ */
+
+.astro-panel {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  border: 1px solid var(--color-secondary);
+  border-radius: var(--corner-radius);
+  padding: 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+}
+
+.astro-panel:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.astro-panel h3 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.astro-panel .loading,
+.astro-panel .error {
+  text-align: center;
+  padding: 2rem;
+  opacity: 0.6;
+}
+
+.astro-panel .error {
+  color: #f44336;
+  opacity: 1;
+}
+
+.retry-btn {
+  display: block;
+  margin: 1rem auto 0;
+  padding: 0.5rem 1rem;
+  background-color: var(--color-accent);
+  color: var(--color-background);
+  border: none;
+  border-radius: var(--corner-radius);
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.retry-btn:hover {
+  opacity: 0.8;
+  transform: translateY(-2px);
+}
+
+.astro-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.astro-section {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: var(--corner-radius);
+  padding: 1.5rem;
+}
+
+.astro-section h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.sun-progress {
+  margin-bottom: 1rem;
+}
+
+.sun-bar {
+  position: relative;
+  height: 60px;
+  background: linear-gradient(90deg, #1a1a3e 0%, #ffd54f 50%, #1a1a3e 100%);
+  border-radius: var(--corner-radius);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sun-position {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 2rem;
+  z-index: 10;
+  transition: left 0.5s ease;
+}
+
+.sun-marker {
+  position: absolute;
+  top: 0;
+  font-size: 0.7rem;
+  opacity: 0.5;
+  font-weight: 600;
+}
+
+.sun-marker.sunrise {
+  left: 2%;
+  transform: translateX(-50%);
+}
+
+.sun-marker.sunset {
+  right: 2%;
+  transform: translateX(50%);
+}
+
+.moon-display {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  justify-content: center;
+}
+
+.moon-icon {
+  font-size: 3rem;
+  animation: rotate 20s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.moon-illumination {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.illumination-ring {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 3px solid var(--color-accent);
+  overflow: hidden;
+  position: relative;
+}
+
+.illumination-fill {
+  height: 100%;
+  background: linear-gradient(90deg, transparent 0%, var(--color-accent) 100%);
+  transition: width 0.3s ease;
+}
+
+.illumination-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.data-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.data-item:last-child {
+  border-bottom: none;
+}
+
+.data-item .label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.6;
+}
+
+.data-item .value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.astro-info {
+  background-color: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: var(--corner-radius);
+  padding: 1rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  opacity: 0.7;
+}
+
+.astro-info p {
+  margin: 0;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .astro-panel {
+    padding: 1.5rem;
+  }
+
+  .astro-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .moon-display {
+    gap: 0.5rem;
+  }
+
+  .moon-icon {
+    font-size: 2rem;
+  }
+
+  .illumination-ring {
+    width: 50px;
+    height: 50px;
+  }
+
+  .data-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+}

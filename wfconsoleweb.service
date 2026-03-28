@@ -1,0 +1,50 @@
+[Unit]
+Description=WFConsoleWeb - Weather Station Web Interface
+Documentation=https://github.com/yourusername/WFConsoleWeb
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wfconsole
+Group=wfconsole
+WorkingDirectory=/opt/wfconsoleweb
+
+# Environment configuration
+EnvironmentFile=/opt/wfconsoleweb/.env
+Environment="PATH=/opt/wfconsoleweb/venv/bin"
+
+# Start command - uses virtual environment
+ExecStart=/opt/wfconsoleweb/venv/bin/python -m wfpiconsole.backend.main
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Process management
+KillMode=mixed
+KillSignal=SIGTERM
+
+# Resource limits (adjust as needed)
+MemoryMax=512M
+CPUQuota=50%
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wfconsoleweb
+
+# Environment variables
+Environment="PYTHONUNBUFFERED=1"
+Environment="PYTHONDONTWRITEBYTECODE=1"
+
+[Install]
+WantedBy=multi-user.target

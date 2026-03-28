@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  wfconsoleweb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wfconsoleweb
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist database and configuration
+      - wfconsole_data:/app/data
+      # Optional: mount .env file for sensitive configuration
+      # - ./.env:/app/.env:ro
+    environment:
+      # Server configuration
+      - HOST=0.0.0.0
+      - PORT=8000
+      - RELOAD=false
+      
+      # Database (use volume for persistence)
+      - DATABASE_URL=sqlite:////app/data/wfpiconsole.db
+      
+      # Security - Generate with: openssl rand -hex 32
+      - SECRET_KEY=${SECRET_KEY:-change-this-to-a-random-value}
+      
+      # WeatherFlow API (update with your values)
+      - WEATHERFLOW_API_KEY=${WEATHERFLOW_API_KEY:-}
+      - DEVICE_ID=${DEVICE_ID:-}
+      
+      # UDP listener for local data (if your Tempest is on same network)
+      - UDP_PORT=50222
+      - UDP_LISTEN=true
+      
+      # Logging
+      - LOG_LEVEL=INFO
+    
+    # Network access for UDP listener
+    network_mode: "host"
+    
+    # Resource limits (adjust based on your system)
+    restart: unless-stopped
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  wfconsole_data:
+    driver: local
+
+# Helper services (optional, uncomment to use)
+
+# Redis for caching (for future enhancements)
+# cache:
+#   image: redis:7-alpine
+#   container_name: wfconsole_redis
+#   ports:
+#     - "6379:6379"
+#   volumes:
+#     - redis_data:/data
+#   command: redis-server --appendonly yes
+#   restart: unless-stopped
+#
+# volumes:
+#   redis_data:
+#     driver: local
+
+# PostgreSQL for larger-scale deployments (instead of SQLite)
+# database:
+#   image: postgres:15-alpine
+#   container_name: wfconsole_db
+#   environment:
+#     - POSTGRES_DB=wfconsole
+#     - POSTGRES_USER=${DB_USER:-wfconsole}
+#     - POSTGRES_PASSWORD=${DB_PASSWORD:-change-me}
+#   volumes:
+#     - postgres_data:/var/lib/postgresql/data
+#   restart: unless-stopped
+#
+# volumes:
+#   postgres_data:
+#     driver: local
