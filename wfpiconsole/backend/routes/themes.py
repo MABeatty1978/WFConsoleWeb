@@ -186,6 +186,23 @@ BUILTIN_THEMES = {
 # Theme endpoints
 
 
+@router.get("/builtin")
+async def list_builtin_themes():
+    """Return built-in themes in the format expected by the frontend."""
+    return [
+        {
+            "id": hash(theme_id) % (10**8),
+            "name": theme_config["name"],
+            "is_builtin": True,
+            "is_enabled": True,
+            "config": theme_config,
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-01T00:00:00Z",
+        }
+        for theme_id, theme_config in BUILTIN_THEMES.items()
+    ]
+
+
 @router.get("/list", response_model=List[ThemeResponse])
 async def list_themes(db: Session = Depends(get_db)):
     """List all available themes (built-in + custom)."""
