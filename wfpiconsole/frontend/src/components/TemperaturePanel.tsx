@@ -1,5 +1,5 @@
 /**
- * Temperature panel – mirrors the PiConsole temperature panel layout.
+ * Temperature panel – follows the legacy WeatherFlow Console layout.
  * Shows current outdoor temperature (large), feels-like, daily min/max,
  * humidity, dew point, 24-hr difference, and 3-hr trend.
  */

@@ -1,7 +1,7 @@
 /**
  * Rainfall panel – shows an animated SVG rain-gauge alongside today,
  * yesterday, monthly, and yearly totals, plus current rain rate.
- * Mirrors the PiConsole Rainfall panel layout.
+ * Uses the legacy WeatherFlow Console panel layout.
  */
 
 import { useMemo } from "react";

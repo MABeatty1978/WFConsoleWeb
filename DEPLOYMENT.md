@@ -154,8 +154,10 @@ Docker assets are present, but they should be treated as an advanced path and va
 Current repository behavior to be aware of:
 
 - the backend code serves `wfpiconsole/frontend/build`
-- the Dockerfile currently builds the frontend in a separate stage
+- the Dockerfile builds the frontend in a separate stage and places it at `wfpiconsole/frontend/build`
+- the image health check targets `GET /health`
 - the Compose file uses host networking for UDP access and a named volume for SQLite persistence
+- host networking means Compose port mappings are not used
 
 Typical commands:
 
@@ -166,6 +168,8 @@ docker compose down
 ```
 
 If you need local Tempest UDP broadcasts inside a containerized deployment, keep the host-networking requirement in mind.
+
+When using Compose, set `JWT_SECRET_KEY` via environment or `.env` for production-like deployments.
 
 ## Health Checks And Diagnostics
 

@@ -531,7 +531,6 @@ export default function SettingsPage() {
 
                     <div className="admin-note api-key-status-note">
                       <p>Status: {weatherFlowConfigured ? "Configured" : "Not configured"}</p>
-                      <p>Service name used internally: weatherflow</p>
                     </div>
 
                     <div className="form-actions api-key-actions">
@@ -777,7 +776,7 @@ export default function SettingsPage() {
                 <p>A modern web-based weather dashboard for Tempest weather stations.</p>
                 
                 <div className="about-links">
-                  <a href="https://github.com" target="_blank" rel="noopener noreferrer">
+                  <a href="https://github.com/michaelbeatty9142002/WFConsoleWeb" target="_blank" rel="noopener noreferrer">
                     GitHub Repository
                   </a>
                   <a href="https://ko-fi.com/michaelbeatty9142002" target="_blank" rel="noopener noreferrer">

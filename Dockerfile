@@ -40,8 +40,8 @@ WORKDIR /app
 # Copy Python project
 COPY --chown=wfconsole:wfconsole . /app/
 
-# Copy built frontend from builder stage
-COPY --from=frontend-builder --chown=wfconsole:wfconsole /app/frontend/build /app/wfpiconsole/backend/static
+# Copy built frontend from builder stage to the path served by backend/main.py
+COPY --from=frontend-builder --chown=wfconsole:wfconsole /app/frontend/build /app/wfpiconsole/frontend/build
 
 # Install Python dependencies
 RUN pip install --upgrade pip setuptools wheel && \
@@ -58,7 +58,7 @@ EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
 # Volume for persistence
 VOLUME ["/app/data"]

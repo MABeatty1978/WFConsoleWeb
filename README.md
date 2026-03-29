@@ -2,6 +2,9 @@
 
 WFConsoleWeb is a FastAPI + React web interface for WeatherFlow Tempest stations. It provides a local dashboard, historical analytics, forecast panels, theme support, and an install flow that provisions a single admin account during setup.
 
+This project was modeled from Pete Davis's WeatherFlow PiConsole project:
+https://github.com/peted-davis/WeatherFlow_PiConsole
+
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Python](https://img.shields.io/badge/python-3.9%2B-brightgreen)
 ![Status](https://img.shields.io/badge/status-alpha-orange)
@@ -236,6 +239,8 @@ Defaults for local development:
 ## Docker
 
 Docker support is included, but review [DEPLOYMENT.md](DEPLOYMENT.md) before relying on it in production. The repository currently uses a multi-stage build and a Compose file oriented around a local SQLite volume and host networking for UDP access.
+
+With host networking, Docker Compose port mappings are not used; access is via the host network stack.
 
 Typical commands:
 

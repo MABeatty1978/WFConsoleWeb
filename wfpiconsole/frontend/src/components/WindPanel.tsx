@@ -56,7 +56,7 @@ function toCardinal(deg: number | null): string {
 
 /** Compass rose SVG.  The arrow tip points toward the wind direction (from where
  *  the wind is blowing).  The orange head is the "from" side, grey tail points
- *  away – matching PiConsole convention. */
+ *  away – matching the legacy panel convention. */
 const CompassRose = memo(function CompassRose({ direction }: { direction: number | null }) {
   const deg = direction ?? 0;
 

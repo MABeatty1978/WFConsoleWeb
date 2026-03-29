@@ -105,8 +105,8 @@ export default function LoginPage() {
           </form>
 
           <div className="login-info">
-            <p>Default credentials are set during installation.</p>
-            <p>Contact your system administrator for access.</p>
+            <p>Admin credentials are created during installation or setup.</p>
+            <p>If login fails, re-run the admin setup script from the project root.</p>
           </div>
         </div>
 

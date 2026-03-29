@@ -6,8 +6,6 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: wfconsoleweb
-    ports:
-      - "8000:8000"
     volumes:
       # Persist database and configuration
       - wfconsole_data:/app/data
@@ -23,7 +21,7 @@ services:
       - DATABASE_URL=sqlite:////app/data/wfpiconsole.db
       
       # Security - Generate with: openssl rand -hex 32
-      - SECRET_KEY=${SECRET_KEY:-change-this-to-a-random-value}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-this-to-a-random-value}
       
       # WeatherFlow API (update with your values)
       - WEATHERFLOW_API_KEY=${WEATHERFLOW_API_KEY:-}
@@ -36,7 +34,8 @@ services:
       # Logging
       - LOG_LEVEL=INFO
     
-    # Network access for UDP listener
+    # Host network is used for UDP listener access.
+    # Port mappings are not used with host networking.
     network_mode: "host"
     
     # Resource limits (adjust based on your system)
