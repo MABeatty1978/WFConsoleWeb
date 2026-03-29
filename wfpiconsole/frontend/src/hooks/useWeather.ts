@@ -21,6 +21,8 @@ export function useObservation(autoRefresh = true) {
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const lastObservationTsMsRef = useRef<number>(0);
+  const lastRapidWindTsMsRef = useRef<number>(0);
 
   const getWindCardinal = useCallback((degrees: number | null | undefined): string => {
     if (degrees === null || degrees === undefined) {
@@ -98,9 +100,22 @@ export function useObservation(autoRefresh = true) {
 
     // Subscribe to WebSocket updates
     const unsubscribe = wsService.onObservation((obs) => {
-      const normalized = normalizeRealtimeObservation(obs as Record<string, unknown>);
+      const normalized = normalizeRealtimeObservation(obs as unknown as Record<string, unknown>);
       const packetType = normalized.packet_type ?? null;
       const isRapidWindPacket = isRapidWindLikePacket(normalized);
+      const obsTsMs = typeof normalized.timestamp === "string"
+        ? Date.parse(normalized.timestamp)
+        : Number.NaN;
+
+      // On reconnect, backend may replay buffered packets; drop stale/out-of-order
+      // messages so live panels stay current and advance at the true packet cadence.
+      if (Number.isFinite(obsTsMs) && obsTsMs < lastObservationTsMsRef.current) {
+        return;
+      }
+
+      if (Number.isFinite(obsTsMs)) {
+        lastObservationTsMsRef.current = obsTsMs;
+      }
 
       setObservation((current) => {
         if (!current) {
@@ -114,6 +129,14 @@ export function useObservation(autoRefresh = true) {
       });
 
       if (isRapidWindPacket) {
+        if (Number.isFinite(obsTsMs) && obsTsMs < lastRapidWindTsMsRef.current) {
+          return;
+        }
+
+        if (Number.isFinite(obsTsMs)) {
+          lastRapidWindTsMsRef.current = obsTsMs;
+        }
+
         setRapidWind((current) => {
           const speed = normalized.wind_speed_mps ?? current?.wind_speed_mps ?? null;
           const gustCandidate = normalized.wind_gust_mps ?? current?.wind_gust_mps ?? speed;

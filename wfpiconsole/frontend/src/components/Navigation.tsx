@@ -2,15 +2,26 @@
  * Navigation component
  */
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { wsService } from "../services/websocket";
+import DataExportModal from "./DataExportModal";
 import "./Navigation.css";
 
 export default function Navigation() {
   const { username, logout } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [connected, setConnected] = useState(() => wsService.isConnected());
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setConnected(wsService.isConnected());
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -66,6 +77,27 @@ export default function Navigation() {
 
           <li className="nav-separator"></li>
 
+          <li>
+            <span className={`nav-connection-status ${connected ? "connected" : "disconnected"}`}>
+              {connected ? "● Connected" : "○ Disconnected"}
+            </span>
+          </li>
+
+          <li>
+            <button
+              className="nav-export-btn"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setExportModalOpen(true);
+              }}
+              title="Export weather data"
+            >
+              ⬇ Export
+            </button>
+          </li>
+
+          <li className="nav-separator"></li>
+
           <li className="nav-user">
             <span className="username">{username}</span>
           </li>
@@ -77,6 +109,8 @@ export default function Navigation() {
           </li>
         </ul>
       </div>
+
+      <DataExportModal isOpen={exportModalOpen} onClose={() => setExportModalOpen(false)} />
     </nav>
   );
 }

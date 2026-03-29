@@ -15,6 +15,16 @@ interface Props {
   wxSummary:  WxSummary | null;
 }
 
+function approximateDewPointC(tempC: number | null, humidity: number | null): number | null {
+  if (tempC === null || humidity === null || humidity <= 0) {
+    return null;
+  }
+  const a = 17.27;
+  const b = 237.7;
+  const alpha = (a * tempC) / (b + tempC) + Math.log(humidity / 100);
+  return (b * alpha) / (a - alpha);
+}
+
 function FeelsLikeLabel(feelsLike: number | null, current: number | null): string {
   if (feelsLike === null || current === null) return "";
   const diff = feelsLike - current;
@@ -40,18 +50,21 @@ export default function TemperaturePanel({ conditions, wxSummary }: Props) {
   const { settings } = useSettings();
   const convertTemp = useTemperatureConverter(settings?.temperatureUnit || "C");
   const unit = settings?.temperatureUnit || "C";
+  const convertDelta = (valueC: number | null): number | null => {
+    if (valueC === null) {
+      return null;
+    }
+    return unit === "F" ? (valueC * 9) / 5 : valueC;
+  };
 
   const temp      = convertTemp(conditions?.temperature_c ?? null);
   const feelsLike = convertTemp(conditions?.feels_like_c  ?? null);
-  const dewPoint  = convertTemp(wxSummary?.current.dew_point_c ?? null);
-  const tempMin   = convertTemp(wxSummary?.today.temp_min_c ?? null);
-  const tempMax   = convertTemp(wxSummary?.today.temp_max_c ?? null);
-  const trend3h   = wxSummary?.current.temp_trend_c ?? null;
-
-  // 24-hr difference: current vs today min (rough approximation)
-  const diff24h = (temp !== null && tempMin !== null)
-    ? parseFloat((temp - tempMin).toFixed(1))
-    : null;
+  const dewPointC = wxSummary?.current.dew_point_c ?? approximateDewPointC(conditions?.temperature_c ?? null, conditions?.humidity ?? null);
+  const dewPoint  = convertTemp(dewPointC);
+  const tempMin   = convertTemp(wxSummary?.today.temp_min_c ?? conditions?.temperature_c ?? null);
+  const tempMax   = convertTemp(wxSummary?.today.temp_max_c ?? conditions?.temperature_c ?? null);
+  const trend3h   = convertDelta(wxSummary?.current.temp_trend_c ?? 0.0);
+  const diff24h   = convertDelta(wxSummary?.current.temp_diff_24h_c ?? 0.0);
 
   const humidity = conditions?.humidity ?? null;
 

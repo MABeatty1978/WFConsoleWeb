@@ -10,6 +10,9 @@
   --compass-minor-tick:    rgba(255,255,255,0.3);
   --wind-arrow-head:       #ff8837;
   --wind-arrow-tail:       #55606a;
+  --wind-text:             var(--color-text, #f1f5f9);
+  --wind-text-muted:       var(--color-text-secondary, rgba(241,245,249,0.8));
+  --wind-highlight:        var(--color-accent, #60a5fa);
 }
 
 /* ---- shared panel shell ---- */
@@ -74,18 +77,18 @@
 .wind-stats-col.right { align-items: flex-end;   text-align: right; }
 
 .wind-stat-block { display: flex; flex-direction: column; margin-bottom: 0.5rem; }
-.wind-stat-label { font-size: 0.7rem; opacity: 0.55; text-transform: uppercase; }
-.wind-stat-sub   { font-size: 0.9rem; font-weight: 600; color: var(--color-accent); }
-.wind-unit       { font-size: 0.75rem; font-weight: 400; opacity: 0.75; }
+.wind-stat-label { font-size: 0.7rem; color: var(--wind-text-muted); text-transform: uppercase; }
+.wind-stat-sub   { font-size: 0.9rem; font-weight: 600; color: var(--wind-highlight); }
+.wind-unit       { font-size: 0.75rem; font-weight: 400; color: var(--wind-text-muted); }
 
 .wind-large-block {
   display: flex;
   align-items: baseline;
   gap: 0.2rem;
 }
-.wind-large-value { font-size: 2.2rem; font-weight: 700; line-height: 1; color: var(--color-accent); }
-.wind-large-unit  { font-size: 0.85rem; opacity: 0.8; }
-.wind-large-caption { font-size: 0.7rem; opacity: 0.55; text-transform: uppercase; margin-top: 0.1rem; }
+.wind-large-value { font-size: 2.2rem; font-weight: 700; line-height: 1; color: var(--wind-text); }
+.wind-large-unit  { font-size: 0.85rem; color: var(--wind-text-muted); }
+.wind-large-caption { font-size: 0.7rem; color: var(--wind-text-muted); text-transform: uppercase; margin-top: 0.1rem; }
 
 /* compass */
 .wind-compass-col { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; }
@@ -99,9 +102,9 @@
 .compass-label {
   font-size: 13px;
   font-weight: 600;
-  fill: rgba(255,255,255,0.7);
+  fill: var(--wind-text-muted);
 }
-.compass-label.cardinal { fill: #ff8837; }
+.compass-label.cardinal { fill: var(--wind-arrow-head); }
 
 .wind-dir-labels {
   display: flex;
@@ -109,8 +112,8 @@
   align-items: center;
   line-height: 1.2;
 }
-.wind-dir-deg      { font-size: 1.15rem; font-weight: 700; color: var(--color-accent); }
-.wind-dir-cardinal { font-size: 0.85rem; opacity: 0.7; }
+.wind-dir-deg      { font-size: 1.15rem; font-weight: 700; color: var(--wind-text); }
+.wind-dir-cardinal { font-size: 0.85rem; color: var(--wind-text-muted); }
 
 /* beaufort footer */
 .wind-beaufort {
@@ -121,10 +124,10 @@
   border-top: 1px solid rgba(255,255,255,0.1);
   font-size: 0.8rem;
 }
-.beaufort-scale { font-weight: 700; color: var(--color-accent); min-width: 2.4rem; }
-.beaufort-desc  { flex: 1; opacity: 0.8; }
-.wind-direction-text { margin-left: auto; opacity: 0.7; }
-.wind-direction-text strong { color: var(--color-accent); }
+.beaufort-scale { font-weight: 700; color: var(--wind-highlight); min-width: 6.4rem; }
+.beaufort-desc  { flex: 1; color: var(--wind-text-muted); }
+.wind-direction-text { margin-left: auto; color: var(--wind-text-muted); }
+.wind-direction-text strong { color: var(--wind-highlight); }
 
 /* ---- responsive ---- */
 @media (max-width: 520px) {

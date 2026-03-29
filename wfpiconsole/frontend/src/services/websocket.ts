@@ -13,8 +13,10 @@ export class WebSocketService {
   private token: string | null = null;
   private isConnecting = false;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
   private reconnectDelay = 3000;
+  private maxReconnectDelay = 30000;
+  private shouldReconnect = true;
+  private reconnectTimer: NodeJS.Timeout | null = null;
   private messageHandlers: Map<string, MessageHandler[]> = new Map();
   private observationHandlers: ObservationHandler[] = [];
   private heartbeatTimeout: NodeJS.Timeout | null = null;
@@ -39,6 +41,7 @@ export class WebSocketService {
       }
 
       this.isConnecting = true;
+      this.shouldReconnect = true;
       this.token = token || localStorage.getItem("auth_token");
 
       try {
@@ -63,7 +66,9 @@ export class WebSocketService {
           console.log("WebSocket disconnected");
           this._stopHeartbeat();
           this.ws = null;
-          this._attemptReconnect();
+          if (this.shouldReconnect) {
+            this._attemptReconnect();
+          }
         };
       } catch (error) {
         this.isConnecting = false;
@@ -76,7 +81,12 @@ export class WebSocketService {
    * Disconnect from WebSocket
    */
   disconnect(): void {
+    this.shouldReconnect = false;
     this._stopHeartbeat();
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (this.ws) {
       this.ws.close();
       this.ws = null;
@@ -189,18 +199,18 @@ export class WebSocketService {
    * Attempt to reconnect
    */
   private _attemptReconnect(): void {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error("Max reconnection attempts reached");
+    if (!this.shouldReconnect) {
       return;
     }
 
     this.reconnectAttempts++;
-    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
+    const exponentialDelay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
+    const delay = Math.min(exponentialDelay, this.maxReconnectDelay);
 
-    console.log(`Attempting reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${delay}ms`);
+    console.log(`Attempting reconnect (${this.reconnectAttempts}) in ${delay}ms`);
 
-    setTimeout(() => {
-      this.connect(this.token).catch((error) => {
+    this.reconnectTimer = setTimeout(() => {
+      this.connect(this.token ?? undefined).catch((error) => {
         console.error("Reconnection failed:", error);
       });
     }, delay);

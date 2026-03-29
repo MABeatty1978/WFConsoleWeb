@@ -106,7 +106,7 @@
   background: linear-gradient(135deg, var(--color-accent), #0099cc);
   border: none;
   border-radius: var(--corner-radius);
-  color: white;
+  color: var(--color-button-text, #ffffff);
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;

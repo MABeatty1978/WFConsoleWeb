@@ -1,6 +1,7 @@
 """WebSocket connection management for real-time observations"""
 import logging
 import json
+from datetime import datetime, timezone
 from typing import Callable
 from collections import deque
 
@@ -143,7 +144,28 @@ class WebSocketManager:
 
     async def _send_buffered_data(self, websocket: WebSocket) -> None:
         """Send buffered observations to new connection."""
-        for obs_dict in self.observation_buffer:
+        # Only replay a short, fresh tail so newly connected clients sync quickly
+        # without walking through stale rapid-wind history.
+        now = datetime.now(timezone.utc)
+        fresh_buffer = []
+        for obs_dict in reversed(self.observation_buffer):
+            timestamp = obs_dict.get("timestamp")
+            if not isinstance(timestamp, str):
+                continue
+
+            try:
+                obs_dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+
+            age_seconds = (now - obs_dt).total_seconds()
+            if age_seconds <= 12:
+                fresh_buffer.append(obs_dict)
+
+            if len(fresh_buffer) >= 5:
+                break
+
+        for obs_dict in reversed(fresh_buffer):
             try:
                 await websocket.send_json({"type": "observation", "data": obs_dict})
             except Exception as e:

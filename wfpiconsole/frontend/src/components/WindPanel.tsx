@@ -3,7 +3,7 @@
  * plus today's average wind and max gust pulled from the wx-summary endpoint.
  */
 
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { useSettings } from "../context/SettingsContext";
 import { useWindSpeedConverter } from "../hooks/useWeather";
 import { WxSummary } from "../types";
@@ -19,6 +19,9 @@ interface Props {
   } | null;
   /** Daily summary (avg wind, max gust) */
   wxSummary: WxSummary | null;
+  currentWindMps?: number | null;
+  currentGustMps?: number | null;
+  currentWindDirDeg?: number | null;
 }
 
 // Beaufort scale boundaries in m/s
@@ -44,6 +47,12 @@ function getBeaufort(mps: number | null): { scale: string; description: string }
     if (mps < limit) return { scale, description };
   }
   return { scale: "B12", description: "Hurricane" };
+}
+
+function formatBeaufortLabel(scale: string): string {
+  const match = /^B(\d{1,2})$/i.exec(scale);
+  if (!match) return scale;
+  return `Beaufort ${match[1]}`;
 }
 
 const CARDINAL = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
@@ -120,17 +129,36 @@ function CompassRose({ direction }: { direction: number | null }) {
   );
 }
 
-export default function WindPanel({ rapidWind, wxSummary }: Props) {
+export default function WindPanel({
+  rapidWind,
+  wxSummary,
+  currentWindMps = null,
+  currentGustMps = null,
+  currentWindDirDeg = null,
+}: Props) {
   const { settings } = useSettings();
   const convertWind = useWindSpeedConverter(settings?.windSpeedUnit || "m/s");
   const unit = settings?.windSpeedUnit || "m/s";
 
-  const windSpeed   = convertWind(rapidWind?.wind_speed_mps ?? null);
-  const windGust    = convertWind(rapidWind?.wind_gust_mps  ?? null);
-  const windDir     = rapidWind?.wind_direction_deg ?? null;
-  const avgWind     = convertWind(wxSummary?.today.avg_wind_mps  ?? null);
-  const maxGust     = convertWind(wxSummary?.today.max_gust_mps  ?? null);
-  const beaufort    = getBeaufort(rapidWind?.wind_speed_mps ?? null);
+  // Prefer rapid-wind packets when available, but fall back to current conditions
+  // so the panel never appears empty after theme switches or websocket hiccups.
+  const liveSpeedSource = rapidWind?.wind_speed_mps ?? currentWindMps ?? null;
+  const liveGustSource =
+    rapidWind?.wind_gust_mps ??
+    currentGustMps ??
+    rapidWind?.wind_speed_mps ??
+    currentWindMps ??
+    null;
+  const liveDirectionSource = rapidWind?.wind_direction_deg ?? currentWindDirDeg ?? null;
+
+  const windSpeed   = convertWind(liveSpeedSource);
+  const windGust    = convertWind(liveGustSource);
+  const windDir     = liveDirectionSource;
+  const avgWindSource = wxSummary?.today.avg_wind_mps ?? rapidWind?.wind_speed_mps ?? currentWindMps;
+  const maxGustSource = wxSummary?.today.max_gust_mps ?? rapidWind?.wind_gust_mps ?? currentGustMps ?? rapidWind?.wind_speed_mps ?? currentWindMps;
+  const avgWind     = convertWind(avgWindSource ?? null);
+  const maxGust     = convertWind(maxGustSource ?? null);
+  const beaufort    = getBeaufort(liveSpeedSource);
 
   const fmt = (val: number | null, decimals = 1) =>
     val !== null ? val.toFixed(decimals) : "--";
@@ -183,7 +211,9 @@ export default function WindPanel({ rapidWind, wxSummary }: Props) {
 
       {/* Beaufort scale footer */}
       <div className="wind-beaufort">
-        <span className="beaufort-scale">{beaufort.scale}</span>
+        <span className="beaufort-scale" title={`Wind force ${beaufort.scale}`}>
+          {formatBeaufortLabel(beaufort.scale)}
+        </span>
         <span className="beaufort-desc">{beaufort.description}</span>
         <span className="wind-direction-text">
           Direction: <strong>{toCardinal(windDir)}</strong>

@@ -2,10 +2,8 @@
  * Dashboard page - main weather display
  */
 
-import React, { useState } from "react";
-import { useObservation, useStationInfo, useWebSocket } from "../hooks/useWeather";
+import { useObservation, useWebSocket } from "../hooks/useWeather";
 import { useWxSummary } from "../hooks/useAdvanced";
-import { useAuth } from "../context/AuthContext";
 import WindPanel from "../components/WindPanel";
 import TemperaturePanel from "../components/TemperaturePanel";
 import RainfallPanel from "../components/RainfallPanel";
@@ -13,41 +11,18 @@ import SagerForecastPanel from "../components/SagerForecastPanel";
 import AstronomicalPanel from "../components/AstronomicalPanel";
 import HistoryChartsPanel from "../components/HistoryChartsPanel";
 import AlertsPanel from "../components/AlertsPanel";
-import DataExportModal from "../components/DataExportModal";
 import "./Dashboard.css";
 
 export default function Dashboard() {
   const { observation, conditions, rapidWind, loading: condLoading, error: condError } = useObservation(true);
-  const { station, loading: stationLoading, error: stationError } = useStationInfo();
   const { summary: wxSummary } = useWxSummary();
-  const { connected, error: wsError } = useWebSocket(true);
-  const { username } = useAuth();
-  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const { error: wsError } = useWebSocket(true);
 
-  const loading = condLoading || stationLoading;
-  const error = condError || stationError || wsError;
+  const loading = condLoading;
+  const error = condError || wsError;
 
   return (
     <div className="dashboard">
-      <header className="dashboard-header">
-        <div className="header-content">
-          <h1>Weather Dashboard {station?.name ? `- ${station.name}` : ""}</h1>
-          <div className="header-status">
-            <span className={`connection-status ${connected ? "connected" : "disconnected"}`}>
-              {connected ? "● Connected" : "○ Disconnected"}
-            </span>
-            <button
-              className="export-btn"
-              onClick={() => setExportModalOpen(true)}
-              title="Export weather data"
-            >
-              ⬇ Export
-            </button>
-            {username && <span className="username">Welcome, {username}</span>}
-          </div>
-        </div>
-      </header>
-
       {error && (
         <div className="error-banner">
           <p>⚠ {error}</p>
@@ -65,7 +40,13 @@ export default function Dashboard() {
             {/* ── Primary 2×2 panel grid ── */}
             <section className="primary-panels-grid">
               <TemperaturePanel conditions={conditions} wxSummary={wxSummary} />
-              <WindPanel        rapidWind={rapidWind}   wxSummary={wxSummary} />
+              <WindPanel
+                rapidWind={rapidWind}
+                wxSummary={wxSummary}
+                currentWindMps={conditions?.wind_speed_mps ?? null}
+                currentGustMps={conditions?.wind_gust_mps ?? null}
+                currentWindDirDeg={conditions?.wind_direction_deg ?? null}
+              />
               <RainfallPanel    wxSummary={wxSummary} />
               <SagerForecastPanel />
             </section>
@@ -102,8 +83,6 @@ export default function Dashboard() {
             : "--"}
         </p>
       </footer>
-
-      <DataExportModal isOpen={exportModalOpen} onClose={() => setExportModalOpen(false)} />
     </div>
   );
 }

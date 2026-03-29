@@ -300,16 +300,16 @@ export default function SettingsPage() {
                       key={theme.name}
                       className={`theme-preset ${currentTheme?.name === theme.name ? "active" : ""}`}
                       onClick={() => handleThemeSwitch(theme.name)}
-                      title={theme.description}
+                      title={theme.config?.name || theme.name}
                     >
                       <div
                         className="theme-preview"
                         style={{
-                          backgroundColor: theme.colors.primary,
-                          borderColor: theme.colors.accent,
+                          backgroundColor: theme.config?.colors?.primary,
+                          borderColor: theme.config?.colors?.accent,
                         }}
                       />
-                      <span>{theme.name}</span>
+                      <span>{theme.config?.name || theme.name}</span>
                     </button>
                   ))}
                 </div>

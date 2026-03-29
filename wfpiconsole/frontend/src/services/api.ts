@@ -17,7 +17,6 @@ import {
 } from "../types";
 
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:8000/api";
-const WS_BASE = process.env.REACT_APP_WS_URL || "ws://localhost:8000";
 
 class ApiClient {
   private token: string | null = null;
@@ -220,8 +219,8 @@ class ApiClient {
   }
 
   // Theme endpoints
-  async listThemes(): Promise<{ themes: Theme[] }> {
-    return this.request<{ themes: Theme[] }>("GET", "/themes/list");
+  async listThemes(): Promise<Theme[]> {
+    return this.request<Theme[]>("GET", "/themes/list");
   }
 
   async getBuiltInThemes(): Promise<Theme[]> {

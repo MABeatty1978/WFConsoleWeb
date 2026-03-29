@@ -225,7 +225,7 @@
 
 .export-btn {
   background: linear-gradient(135deg, var(--color-accent), #0099cc);
-  color: var(--color-background);
+  color: var(--color-button-text, #ffffff);
 }
 
 .export-btn:hover:not(:disabled) {

@@ -50,6 +50,14 @@ async def get_sager_forecast(
         pressures = [obs.sea_level_pressure for obs in reversed(observations) if obs.sea_level_pressure is not None]
 
         if len(pressures) < 4:
+            latest_with_pressure = next((obs for obs in observations if obs.sea_level_pressure is not None), None)
+            if latest_with_pressure is not None:
+                return {
+                    "forecastCode": 4,
+                    "forecastText": "Steady pressure (limited recent history)",
+                    "seaLevelPressureTrend": "steady",
+                    "localTime": int(latest_with_pressure.timestamp.timestamp()) if latest_with_pressure.timestamp else 0,
+                }
             return {
                 "forecastCode": 10,
                 "forecastText": "Insufficient data for forecast",

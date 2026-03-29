@@ -178,13 +178,17 @@ async def get_display_settings(db: Session = Depends(get_db)):
 
     return {
         "temperature_unit": settings.temperature_unit,
-        "wind_speed_unit": settings.wind_speed_unit,
+        "wind_speed_unit": settings.wind_unit,
         "pressure_unit": settings.pressure_unit,
         "current_theme": settings.current_theme,
-        "panels_per_row": settings.panels_per_row,
-        "feels_like_threshold_cold_c": settings.feels_like_threshold_cold_c,
-        "feels_like_threshold_hot_c": settings.feels_like_threshold_hot_c,
-        "data_granularity": settings.data_granularity,
+        "panels_per_row": settings.primary_panel_count,
+        "feels_like_threshold_cold_c": settings.feels_like_cold_threshold,
+        "feels_like_threshold_hot_c": settings.feels_like_warm_threshold,
+        "data_granularity": {
+            1: "1min",
+            5: "5min",
+            60: "hourly",
+        }.get(settings.data_granularity_minutes, "5min"),
         "language": settings.language,
     }
 
@@ -197,19 +201,25 @@ async def update_display_settings(
 ):
     """Update display preferences."""
     try:
+        granularity_to_minutes = {
+            "1min": 1,
+            "5min": 5,
+            "hourly": 60,
+        }
+
         display = db.query(DisplaySettings).first()
         if not display:
             display = DisplaySettings()
             db.add(display)
 
         display.temperature_unit = settings.temperature_unit
-        display.wind_speed_unit = settings.wind_speed_unit
+        display.wind_unit = settings.wind_speed_unit
         display.pressure_unit = settings.pressure_unit
         display.current_theme = settings.current_theme
-        display.panels_per_row = settings.panels_per_row
-        display.feels_like_threshold_cold_c = settings.feels_like_threshold_cold_c
-        display.feels_like_threshold_hot_c = settings.feels_like_threshold_hot_c
-        display.data_granularity = settings.data_granularity
+        display.primary_panel_count = settings.panels_per_row
+        display.feels_like_cold_threshold = settings.feels_like_threshold_cold_c
+        display.feels_like_warm_threshold = settings.feels_like_threshold_hot_c
+        display.data_granularity_minutes = granularity_to_minutes.get(settings.data_granularity, 5)
         display.language = settings.language
 
         db.commit()

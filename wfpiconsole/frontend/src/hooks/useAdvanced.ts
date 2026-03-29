@@ -2,9 +2,10 @@
  * Extension hooks for advanced features
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { apiClient } from "../services/api";
 import { WxSummary } from "../types";
+import { wsService } from "../services/websocket";
 
 export interface SagerForecast {
   seaLevelPressureTrend: string;
@@ -322,24 +323,53 @@ export function useWxSummary() {
   const [summary, setSummary] = useState<WxSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const lastRefreshMsRef = useRef(0);
 
-  const fetchSummary = useCallback(async () => {
+  const fetchSummary = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       setError(null);
       const data = await apiClient.getWxSummary();
       setSummary(data);
+      lastRefreshMsRef.current = Date.now();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch weather summary");
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     fetchSummary();
-    const interval = setInterval(fetchSummary, 300_000); // refresh every 5 min
-    return () => clearInterval(interval);
+    // Keep summary reasonably fresh even without websocket updates.
+    const interval = setInterval(() => {
+      void fetchSummary(true);
+    }, 60_000);
+
+    // Also refresh summary when non-rapid observation packets arrive.
+    const unsubscribe = wsService.onObservation((obs) => {
+      const packetType = typeof obs.packet_type === "string" ? obs.packet_type : null;
+      if (packetType === "rapid_wind") {
+        return;
+      }
+
+      const now = Date.now();
+      // Throttle refreshes so bursts of packets do not spam API calls.
+      if (now - lastRefreshMsRef.current < 15_000) {
+        return;
+      }
+
+      void fetchSummary(true);
+    });
+
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+    };
   }, [fetchSummary]);
 
   return { summary, loading, error, refetch: fetchSummary };

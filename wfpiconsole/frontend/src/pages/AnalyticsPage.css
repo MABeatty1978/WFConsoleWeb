@@ -48,7 +48,7 @@
 
 .time-btn.active {
   background-color: var(--color-accent);
-  color: var(--color-background);
+  color: var(--color-button-text, #ffffff);
   border-color: var(--color-accent);
 }
 

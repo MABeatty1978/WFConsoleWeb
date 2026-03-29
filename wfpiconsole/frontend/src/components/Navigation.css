@@ -164,6 +164,40 @@
   white-space: nowrap;
 }
 
+.nav-connection-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--corner-radius);
+  background-color: rgba(255, 255, 255, 0.07);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.nav-connection-status.connected {
+  color: #4caf50;
+}
+
+.nav-connection-status.disconnected {
+  color: #f44336;
+}
+
+.nav-export-btn {
+  padding: 0.4rem 0.8rem;
+  background-color: var(--color-accent);
+  color: var(--color-button-text, #ffffff);
+  border: none;
+  border-radius: var(--corner-radius);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.nav-export-btn:hover {
+  opacity: 0.9;
+}
+
 .username {
   font-size: 0.9rem;
   opacity: 0.7;
@@ -173,6 +207,17 @@
   .nav-user {
     padding: 0.5rem 1rem;
     width: 100%;
+  }
+
+  .nav-connection-status {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .nav-export-btn {
+    width: 100%;
+    text-align: center;
+    padding: 0.75rem 1rem;
   }
 }
 

@@ -220,6 +220,10 @@ async def get_current_conditions(db: Session = Depends(get_db)):
         if temp_c is not None
         else None
     )
+    # This dashboard treats "feels like" as wind chill style and should not be
+    # warmer than measured air temperature.
+    if temp_c is not None and feels_like_c is not None and feels_like_c > temp_c:
+        feels_like_c = temp_c
     feels_like_f = convert_temperature(feels_like_c, "C", "F") if feels_like_c is not None else None
 
     # Wind conversions
@@ -407,7 +411,7 @@ async def get_observation_stats(
 @router.get("/wx-summary")
 async def get_wx_summary(db: Session = Depends(get_db)):
     """Get weather summary with daily/monthly/yearly statistics for dashboard panels."""
-    from datetime import datetime, date, timedelta
+    from datetime import datetime, timedelta
     from wfpiconsole.core.calculations import calculate_dew_point
 
     now = datetime.utcnow()
@@ -440,6 +444,37 @@ async def get_wx_summary(db: Session = Depends(get_db)):
     temps_today = [o.air_temperature for o in today_obs if o.air_temperature is not None]
     winds_today = [o.wind_speed for o in today_obs if o.wind_speed is not None]
     gusts_today = [o.wind_gust for o in today_obs if o.wind_gust is not None]
+
+    # Robust wind aggregations:
+    # - Some feeds provide speed but no gust on rapid packets.
+    # - Some stations can briefly miss obs_st packets.
+    # Use available wind fields and fall back to latest known values.
+    avg_samples = winds_today if winds_today else [o.wind_gust for o in today_obs if o.wind_gust is not None]
+    max_gust_samples = [
+        (o.wind_gust if o.wind_gust is not None else o.wind_speed)
+        for o in today_obs
+        if o.wind_gust is not None or o.wind_speed is not None
+    ]
+
+    avg_wind_mps = (
+        round(sum(avg_samples) / len(avg_samples), 2)
+        if avg_samples
+        else (
+            round(latest.wind_speed, 2)
+            if latest and latest.wind_speed is not None
+            else (round(latest.wind_gust, 2) if latest and latest.wind_gust is not None else None)
+        )
+    )
+
+    max_gust_mps = (
+        round(max(max_gust_samples), 2)
+        if max_gust_samples
+        else (
+            round(latest.wind_gust, 2)
+            if latest and latest.wind_gust is not None
+            else (round(latest.wind_speed, 2) if latest and latest.wind_speed is not None else None)
+        )
+    )
 
     # Today's rainfall - use max rainfall_daily (device-reported daily accumulation)
     rain_today_vals = [o.rainfall_daily for o in today_obs if o.rainfall_daily is not None]
@@ -483,18 +518,27 @@ async def get_wx_summary(db: Session = Depends(get_db)):
         except Exception:
             pass
 
-    # 3-hour temperature trend
+    # 3-hour temperature trend: use nearest prior non-null temperature sample.
     three_hours_ago = now - timedelta(hours=3)
     old_obs = (
         db.query(ObservationHistory)
         .filter(
-            ObservationHistory.timestamp >= three_hours_ago - timedelta(minutes=15),
-            ObservationHistory.timestamp <= three_hours_ago + timedelta(minutes=15),
+            ObservationHistory.timestamp <= three_hours_ago,
             ObservationHistory.air_temperature.isnot(None),
         )
-        .order_by(ObservationHistory.timestamp.asc())
+        .order_by(ObservationHistory.timestamp.desc())
         .first()
     )
+    if old_obs is None:
+        old_obs = (
+            db.query(ObservationHistory)
+            .filter(
+                ObservationHistory.timestamp >= three_hours_ago,
+                ObservationHistory.air_temperature.isnot(None),
+            )
+            .order_by(ObservationHistory.timestamp.asc())
+            .first()
+        )
     temp_trend_c = None
     if (
         old_obs
@@ -503,14 +547,48 @@ async def get_wx_summary(db: Session = Depends(get_db)):
         and old_obs.air_temperature is not None
     ):
         temp_trend_c = round(latest.air_temperature - old_obs.air_temperature, 1)
+    elif latest and latest.air_temperature is not None:
+        temp_trend_c = 0.0
+
+    # 24-hour temperature difference: nearest prior non-null temperature sample.
+    twenty_four_hours_ago = now - timedelta(hours=24)
+    day_old_obs = (
+        db.query(ObservationHistory)
+        .filter(
+            ObservationHistory.timestamp <= twenty_four_hours_ago,
+            ObservationHistory.air_temperature.isnot(None),
+        )
+        .order_by(ObservationHistory.timestamp.desc())
+        .first()
+    )
+    if day_old_obs is None:
+        day_old_obs = (
+            db.query(ObservationHistory)
+            .filter(
+                ObservationHistory.timestamp >= twenty_four_hours_ago,
+                ObservationHistory.air_temperature.isnot(None),
+            )
+            .order_by(ObservationHistory.timestamp.asc())
+            .first()
+        )
+    temp_diff_24h_c = None
+    if (
+        day_old_obs
+        and latest
+        and latest.air_temperature is not None
+        and day_old_obs.air_temperature is not None
+    ):
+        temp_diff_24h_c = round(latest.air_temperature - day_old_obs.air_temperature, 1)
+    elif latest and latest.air_temperature is not None:
+        temp_diff_24h_c = 0.0
 
     return {
         "today": {
             "temp_min_c": round(min(temps_today), 1) if temps_today else None,
             "temp_max_c": round(max(temps_today), 1) if temps_today else None,
             "rain_mm": round(rain_today, 2),
-            "avg_wind_mps": round(sum(winds_today) / len(winds_today), 2) if winds_today else None,
-            "max_gust_mps": round(max(gusts_today), 2) if gusts_today else None,
+            "avg_wind_mps": avg_wind_mps,
+            "max_gust_mps": max_gust_mps,
         },
         "yesterday": {
             "rain_mm": round(rain_yesterday, 2),
@@ -524,6 +602,7 @@ async def get_wx_summary(db: Session = Depends(get_db)):
         "current": {
             "dew_point_c": dew_point_c,
             "rain_rate_mm_per_hour": latest.rainfall_rate if latest else None,
+            "temp_diff_24h_c": temp_diff_24h_c,
             "temp_trend_c": temp_trend_c,
         },
     }
