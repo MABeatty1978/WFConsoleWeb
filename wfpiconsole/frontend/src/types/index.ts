@@ -157,3 +157,27 @@ export interface AuthUser {
   username: string;
   created_at: string;
 }
+
+export interface WxSummary {
+  today: {
+    temp_min_c: number | null;
+    temp_max_c: number | null;
+    rain_mm: number;
+    avg_wind_mps: number | null;
+    max_gust_mps: number | null;
+  };
+  yesterday: {
+    rain_mm: number;
+  };
+  month: {
+    rain_mm: number;
+  };
+  year: {
+    rain_mm: number;
+  };
+  current: {
+    dew_point_c: number | null;
+    rain_rate_mm_per_hour: number | null;
+    temp_trend_c: number | null;
+  };
+}

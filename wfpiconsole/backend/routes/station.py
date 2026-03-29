@@ -402,3 +402,128 @@ async def get_observation_stats(
         },
         "rainfall_total_mm": rainfall_total,
     }
+
+
+@router.get("/wx-summary")
+async def get_wx_summary(db: Session = Depends(get_db)):
+    """Get weather summary with daily/monthly/yearly statistics for dashboard panels."""
+    from datetime import datetime, date, timedelta
+    from wfpiconsole.core.calculations import calculate_dew_point
+
+    now = datetime.utcnow()
+    today_start = datetime(now.year, now.month, now.day)
+    yesterday_start = today_start - timedelta(days=1)
+    month_start = datetime(now.year, now.month, 1)
+    year_start = datetime(now.year, 1, 1)
+
+    # Today's observations
+    today_obs = (
+        db.query(ObservationHistory)
+        .filter(ObservationHistory.timestamp >= today_start)
+        .all()
+    )
+
+    # Yesterday's observations
+    yesterday_obs = (
+        db.query(ObservationHistory)
+        .filter(
+            ObservationHistory.timestamp >= yesterday_start,
+            ObservationHistory.timestamp < today_start,
+        )
+        .all()
+    )
+
+    # Latest complete observation
+    latest = _get_latest_complete_observation(db)
+
+    # Today's temperature/wind stats
+    temps_today = [o.air_temperature for o in today_obs if o.air_temperature is not None]
+    winds_today = [o.wind_speed for o in today_obs if o.wind_speed is not None]
+    gusts_today = [o.wind_gust for o in today_obs if o.wind_gust is not None]
+
+    # Today's rainfall - use max rainfall_daily (device-reported daily accumulation)
+    rain_today_vals = [o.rainfall_daily for o in today_obs if o.rainfall_daily is not None]
+    rain_today = max(rain_today_vals) if rain_today_vals else 0.0
+
+    # Yesterday's rainfall
+    rain_yesterday_vals = [o.rainfall_daily for o in yesterday_obs if o.rainfall_daily is not None]
+    rain_yesterday = max(rain_yesterday_vals) if rain_yesterday_vals else 0.0
+
+    # Monthly rainfall - sum the peak rain_daily per distinct UTC day
+    month_obs = (
+        db.query(ObservationHistory)
+        .filter(ObservationHistory.timestamp >= month_start)
+        .all()
+    )
+    rain_by_day: dict = {}
+    for o in month_obs:
+        if o.rainfall_daily is not None and o.timestamp:
+            day = o.timestamp.date()
+            rain_by_day[day] = max(rain_by_day.get(day, 0.0), o.rainfall_daily)
+    rain_month = sum(rain_by_day.values())
+
+    # Yearly rainfall
+    year_obs = (
+        db.query(ObservationHistory)
+        .filter(ObservationHistory.timestamp >= year_start)
+        .all()
+    )
+    rain_year_by_day: dict = {}
+    for o in year_obs:
+        if o.rainfall_daily is not None and o.timestamp:
+            day = o.timestamp.date()
+            rain_year_by_day[day] = max(rain_year_by_day.get(day, 0.0), o.rainfall_daily)
+    rain_year = sum(rain_year_by_day.values())
+
+    # Dew point
+    dew_point_c = None
+    if latest and latest.air_temperature is not None and latest.relative_humidity is not None:
+        try:
+            dew_point_c = calculate_dew_point(latest.air_temperature, latest.relative_humidity)
+        except Exception:
+            pass
+
+    # 3-hour temperature trend
+    three_hours_ago = now - timedelta(hours=3)
+    old_obs = (
+        db.query(ObservationHistory)
+        .filter(
+            ObservationHistory.timestamp >= three_hours_ago - timedelta(minutes=15),
+            ObservationHistory.timestamp <= three_hours_ago + timedelta(minutes=15),
+            ObservationHistory.air_temperature.isnot(None),
+        )
+        .order_by(ObservationHistory.timestamp.asc())
+        .first()
+    )
+    temp_trend_c = None
+    if (
+        old_obs
+        and latest
+        and latest.air_temperature is not None
+        and old_obs.air_temperature is not None
+    ):
+        temp_trend_c = round(latest.air_temperature - old_obs.air_temperature, 1)
+
+    return {
+        "today": {
+            "temp_min_c": round(min(temps_today), 1) if temps_today else None,
+            "temp_max_c": round(max(temps_today), 1) if temps_today else None,
+            "rain_mm": round(rain_today, 2),
+            "avg_wind_mps": round(sum(winds_today) / len(winds_today), 2) if winds_today else None,
+            "max_gust_mps": round(max(gusts_today), 2) if gusts_today else None,
+        },
+        "yesterday": {
+            "rain_mm": round(rain_yesterday, 2),
+        },
+        "month": {
+            "rain_mm": round(rain_month, 2),
+        },
+        "year": {
+            "rain_mm": round(rain_year, 2),
+        },
+        "current": {
+            "dew_point_c": dew_point_c,
+            "rain_rate_mm_per_hour": latest.rainfall_rate if latest else None,
+            "temp_trend_c": temp_trend_c,
+        },
+    }

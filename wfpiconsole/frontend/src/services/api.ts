@@ -13,6 +13,7 @@ import {
   LoginResponse,
   AuthUser,
   HealthStatus,
+  WxSummary,
 } from "../types";
 
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:8000/api";
@@ -122,6 +123,10 @@ class ApiClient {
       "GET",
       `/station/observations/stats?hours=${hours}`
     );
+  }
+
+  async getWxSummary(): Promise<WxSummary> {
+    return this.request<WxSummary>("GET", "/station/wx-summary", undefined, false);
   }
 
   // Configuration endpoints

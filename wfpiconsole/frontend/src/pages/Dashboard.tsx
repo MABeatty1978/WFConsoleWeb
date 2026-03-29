@@ -2,24 +2,26 @@
  * Dashboard page - main weather display
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useObservation, useStationInfo, useWebSocket } from "../hooks/useWeather";
+import { useWxSummary } from "../hooks/useAdvanced";
 import { useAuth } from "../context/AuthContext";
-import { useSettings } from "../context/SettingsContext";
-import CurrentConditionsPanel from "../components/CurrentConditionsPanel";
-import HistoryChartsPanel from "../components/HistoryChartsPanel";
-import AlertsPanel from "../components/AlertsPanel";
+import WindPanel from "../components/WindPanel";
+import TemperaturePanel from "../components/TemperaturePanel";
+import RainfallPanel from "../components/RainfallPanel";
 import SagerForecastPanel from "../components/SagerForecastPanel";
 import AstronomicalPanel from "../components/AstronomicalPanel";
+import HistoryChartsPanel from "../components/HistoryChartsPanel";
+import AlertsPanel from "../components/AlertsPanel";
 import DataExportModal from "../components/DataExportModal";
 import "./Dashboard.css";
 
 export default function Dashboard() {
   const { observation, conditions, rapidWind, loading: condLoading, error: condError } = useObservation(true);
   const { station, loading: stationLoading, error: stationError } = useStationInfo();
+  const { summary: wxSummary } = useWxSummary();
   const { connected, error: wsError } = useWebSocket(true);
   const { username } = useAuth();
-  const { settings } = useSettings();
   const [exportModalOpen, setExportModalOpen] = useState(false);
 
   const loading = condLoading || stationLoading;
@@ -60,37 +62,32 @@ export default function Dashboard() {
           </div>
         ) : (
           <>
-            <section className="dashboard-row primary">
-              <CurrentConditionsPanel
-                observation={observation}
-                conditions={conditions}
-                rapidWind={rapidWind}
-                station={station}
-              />
+            {/* ── Primary 2×2 panel grid ── */}
+            <section className="primary-panels-grid">
+              <TemperaturePanel conditions={conditions} wxSummary={wxSummary} />
+              <WindPanel        rapidWind={rapidWind}   wxSummary={wxSummary} />
+              <RainfallPanel    wxSummary={wxSummary} />
+              <SagerForecastPanel />
             </section>
 
-            <section className="dashboard-row">
-              <div className="panels-grid">
-                <SagerForecastPanel />
-                <AstronomicalPanel />
-              </div>
+            {/* ── Astronomy & secondary info ── */}
+            <section className="secondary-panels-grid">
+              <AstronomicalPanel />
             </section>
 
-            <section className="dashboard-row">
+            {/* ── History charts ── */}
+            <section className="charts-section">
               <div className="charts-grid">
                 <HistoryChartsPanel metric="temperature" title="Temperature Trend" />
-                <HistoryChartsPanel metric="humidity" title="Humidity Trend" />
+                <HistoryChartsPanel metric="humidity"    title="Humidity Trend" />
               </div>
-            </section>
-
-            <section className="dashboard-row">
               <div className="charts-grid">
                 <HistoryChartsPanel metric="pressure" title="Pressure Trend" />
-                <HistoryChartsPanel metric="wind" title="Wind Speed Trend" />
+                <HistoryChartsPanel metric="wind"     title="Wind Speed Trend" />
               </div>
             </section>
 
-            <section className="dashboard-row">
+            <section className="alerts-section">
               <AlertsPanel />
             </section>
           </>

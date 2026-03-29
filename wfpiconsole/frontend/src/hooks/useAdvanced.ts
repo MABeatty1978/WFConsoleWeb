@@ -4,6 +4,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { apiClient } from "../services/api";
+import { WxSummary } from "../types";
 
 export interface SagerForecast {
   seaLevelPressureTrend: string;
@@ -311,4 +312,35 @@ export function useCustomPanels() {
     updatePanel,
     savePanels,
   };
+}
+
+/**
+ * Hook for daily/monthly/yearly weather summary data used by dashboard panels.
+ * Refreshes every 5 minutes.
+ */
+export function useWxSummary() {
+  const [summary, setSummary] = useState<WxSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchSummary = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await apiClient.getWxSummary();
+      setSummary(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch weather summary");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSummary();
+    const interval = setInterval(fetchSummary, 300_000); // refresh every 5 min
+    return () => clearInterval(interval);
+  }, [fetchSummary]);
+
+  return { summary, loading, error, refetch: fetchSummary };
 }

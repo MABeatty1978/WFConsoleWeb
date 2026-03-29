@@ -145,6 +145,35 @@
   gap: 1.5rem;
 }
 
+/* ── NEW 2×2 primary panel grid ── */
+.primary-panels-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* ── Secondary panels (astronomy, etc.) ── */
+.secondary-panels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* ── Charts section ── */
+.charts-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* ── Alerts section ── */
+.alerts-section {
+  margin-bottom: 2rem;
+}
+
 .dashboard-footer {
   background-color: var(--color-primary);
   border-top: 1px solid var(--color-secondary);
@@ -181,6 +210,10 @@
 
   .dashboard-main {
     padding: 1rem;
+  }
+
+  .primary-panels-grid {
+    grid-template-columns: 1fr;
   }
 
   .charts-grid {

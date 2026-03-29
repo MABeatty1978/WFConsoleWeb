@@ -64,13 +64,15 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
         const displaySettings = await apiClient.getDisplaySettings();
         
-        // Merge with defaults
+        // Merge with defaults.  Prefer localStorage (client-side override) then the
+        // server-persisted value, then the hard-coded default so that saved preferences
+        // are respected both across browser sessions and across server restarts.
         const merged: AppSettings = {
           ...DEFAULT_SETTINGS,
           ...displaySettings,
-          temperatureUnit: (localStorage.getItem("tempUnit") || "C") as TemperatureUnit,
-          windSpeedUnit: (localStorage.getItem("windUnit") || "m/s") as WindSpeedUnit,
-          pressureUnit: (localStorage.getItem("pressureUnit") || "mb") as PressureUnit,
+          temperatureUnit: (localStorage.getItem("tempUnit") || displaySettings.temperature_unit || "C") as TemperatureUnit,
+          windSpeedUnit: (localStorage.getItem("windUnit") || displaySettings.wind_speed_unit || "m/s") as WindSpeedUnit,
+          pressureUnit: (localStorage.getItem("pressureUnit") || displaySettings.pressure_unit || "mb") as PressureUnit,
         };
 
         setSettings(merged);
@@ -92,11 +94,21 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     try {
       setError(null);
       
-      // Update on server
-      const updated = await apiClient.updateDisplaySettings({
+      // Build the API payload with proper snake_case field names so that unit
+      // preferences (stored in camelCase on the client) are actually persisted
+      // in the database when the user changes them.
+      const apiPayload = {
         ...settings,
-        ...newSettings,
-      });
+        ...(newSettings.temperatureUnit !== undefined && { temperature_unit: newSettings.temperatureUnit }),
+        ...(newSettings.windSpeedUnit !== undefined && { wind_speed_unit: newSettings.windSpeedUnit }),
+        ...(newSettings.pressureUnit !== undefined && { pressure_unit: newSettings.pressureUnit }),
+        ...Object.fromEntries(
+          Object.entries(newSettings).filter(([k]) => !["temperatureUnit", "windSpeedUnit", "pressureUnit"].includes(k))
+        ),
+      };
+
+      // Update on server
+      const updated = await apiClient.updateDisplaySettings(apiPayload);
 
       // Update local state
       const merged = { ...settings, ...updated, ...newSettings };

@@ -51,6 +51,29 @@ export function useObservation(autoRefresh = true) {
     signal_strength: typeof payload.rssi === "number" ? payload.rssi : null,
   }), []);
 
+  const isRapidWindLikePacket = useCallback((normalized: Partial<Observation>): boolean => {
+    if ((normalized.packet_type ?? null) === "rapid_wind") {
+      return true;
+    }
+
+    const hasWind = (
+      normalized.wind_speed_mps !== null ||
+      normalized.wind_gust_mps !== null ||
+      normalized.wind_direction_deg !== null
+    );
+
+    const hasNonWindObservationFields = (
+      normalized.temp_c !== null ||
+      normalized.humidity !== null ||
+      normalized.pressure_mb !== null ||
+      normalized.rainfall_mm !== null ||
+      normalized.solar_radiation_wm2 !== null ||
+      normalized.uv_index !== null
+    );
+
+    return hasWind && !hasNonWindObservationFields;
+  }, []);
+
   const fetchLatest = useCallback(async () => {
     try {
       setLoading(true);
@@ -77,6 +100,7 @@ export function useObservation(autoRefresh = true) {
     const unsubscribe = wsService.onObservation((obs) => {
       const normalized = normalizeRealtimeObservation(obs as Record<string, unknown>);
       const packetType = normalized.packet_type ?? null;
+      const isRapidWindPacket = isRapidWindLikePacket(normalized);
 
       setObservation((current) => {
         if (!current) {
@@ -89,7 +113,7 @@ export function useObservation(autoRefresh = true) {
         };
       });
 
-      if (packetType === "rapid_wind") {
+      if (isRapidWindPacket) {
         setRapidWind((current) => {
           const speed = normalized.wind_speed_mps ?? current?.wind_speed_mps ?? null;
           const gustCandidate = normalized.wind_gust_mps ?? current?.wind_gust_mps ?? speed;
@@ -138,7 +162,7 @@ export function useObservation(autoRefresh = true) {
     });
 
     return unsubscribe;
-  }, [autoRefresh, fetchLatest, getWindCardinal, normalizeRealtimeObservation]);
+  }, [autoRefresh, fetchLatest, getWindCardinal, isRapidWindLikePacket, normalizeRealtimeObservation]);
 
   return { observation, conditions, rapidWind, loading, error, refetch: fetchLatest };
 }
