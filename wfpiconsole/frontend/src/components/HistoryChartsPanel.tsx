@@ -2,10 +2,8 @@
  * Historical data charts panel
  */
 
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import {
-  LineChart,
-  Line,
   AreaChart,
   Area,
   XAxis,
@@ -32,6 +30,34 @@ export default function HistoryChartsPanel({
 }: Props) {
   const { data, loading, error } = useHistoricalData(metric, hours);
   const { settings } = useSettings();
+
+  // Calculate data range for fixed domain
+  const dataRange = useMemo(() => {
+    if (!data || data.length === 0) return null;
+
+    let values: number[] = [];
+    if (metric === "temperature" && data[0]?.temperature !== undefined) {
+      values = data.map((d: any) => d.temperature).filter((v: any) => v !== null);
+    } else if (metric === "humidity" && data[0]?.humidity !== undefined) {
+      values = data.map((d: any) => d.humidity).filter((v: any) => v !== null);
+    } else if (metric === "pressure" && data[0]?.pressure !== undefined) {
+      values = data.map((d: any) => d.pressure).filter((v: any) => v !== null);
+    } else if (metric === "wind" && data[0]?.windSpeed !== undefined) {
+      values = data.map((d: any) => d.windSpeed).filter((v: any) => v !== null);
+    } else if (metric === "rainfall" && data[0]?.rainfall !== undefined) {
+      values = data.map((d: any) => d.rainfall).filter((v: any) => v !== null);
+    } else if (metric === "solar" && data[0]?.solarRadiation !== undefined) {
+      values = data.map((d: any) => d.solarRadiation).filter((v: any) => v !== null);
+    }
+
+    if (values.length === 0) return null;
+
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const padding = (max - min) * 0.05; // 5% padding
+
+    return [Math.max(0, min - padding), max + padding];
+  }, [data, metric]);
 
   const chartConfig = useMemo(() => {
     switch (metric) {
@@ -137,6 +163,7 @@ export default function HistoryChartsPanel({
             <YAxis
               stroke="rgba(255, 255, 255, 0.5)"
               style={{ fontSize: "0.75rem" }}
+              domain={dataRange || undefined}
             />
             <Tooltip
               contentStyle={{

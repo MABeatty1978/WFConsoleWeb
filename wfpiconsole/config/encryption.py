@@ -1,5 +1,4 @@
 """Encryption utilities for sensitive data"""
-import os
 from typing import Tuple
 
 from cryptography.fernet import Fernet
@@ -20,7 +19,11 @@ class EncryptionManager:
         Args:
             master_password: Password to derive encryption key from. If None, uses settings.
         """
-        self.master_password = master_password or settings.master_password
+        self.master_password = (
+            master_password
+            or settings.master_password
+            or settings.jwt_secret_key
+        )
 
     def _get_cipher(self) -> Fernet:
         """Generate a Fernet cipher instance from the master password"""

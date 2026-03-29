@@ -92,6 +92,7 @@ class WeatherFlowAPI:
         self,
         latitude: float,
         longitude: float,
+        station_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Get weather forecast for location.
@@ -107,17 +108,31 @@ class WeatherFlowAPI:
             session = await self._get_session()
             url = self.FORECAST_URL
             params = {
-                "lat": latitude,
-                "lon": longitude,
                 "token": self.api_token,
                 "units_distance": "km",
                 "units_speed": "mps",
                 "units_temperature": "c",
             }
 
+            # Some valid WeatherFlow tokens authorize station_id requests but reject lat/lon requests.
+            if station_id:
+                params["station_id"] = station_id
+            else:
+                params["lat"] = latitude
+                params["lon"] = longitude
+
             response = await session.get(url, params=params)
             response.raise_for_status()
             return response.json()
+
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code if e.response is not None else None
+            logger.error(f"WeatherFlow forecast request failed with status {status_code}")
+            if status_code == 401:
+                raise ValueError("WeatherFlow API token was rejected (401 Unauthorized)") from e
+            if status_code == 429:
+                raise ValueError("WeatherFlow forecast request was rate limited (429 Too Many Requests)") from e
+            raise ValueError(f"WeatherFlow forecast request failed with status {status_code}") from e
 
         except httpx.RequestError as e:
             logger.error(f"Failed to fetch forecast: {e}")

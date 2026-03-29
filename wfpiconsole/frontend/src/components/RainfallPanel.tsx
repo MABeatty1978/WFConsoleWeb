@@ -4,8 +4,9 @@
  * Mirrors the PiConsole Rainfall panel layout.
  */
 
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { WxSummary } from "../types";
+import { useSettings } from "../context/SettingsContext";
 import "./RainfallPanel.css";
 
 interface Props {
@@ -17,7 +18,13 @@ interface Props {
  * The gauge is a vertical cylinder; the water height is proportional to
  * sqrt(rate) so that low rates are still visible.
  */
-function RainGauge({ rateMMph }: { rateMMph: number | null }) {
+function RainGauge({
+  rateMMph,
+  rainfallUnit,
+}: {
+  rateMMph: number | null;
+  rainfallUnit: "mm" | "in";
+}) {
   const rate = rateMMph ?? 0;
 
   // Map rate (0 → 50+ mm/h) to fill fraction (0 → 1) via sqrt curve
@@ -43,6 +50,12 @@ function RainGauge({ rateMMph }: { rateMMph: number | null }) {
     y: GAUGE_BOT - GAUGE_H * f,
     long: Math.round(f * 10) % 5 === 0,
   }));
+
+  const displayRate = rainfallUnit === "in" ? rate / 25.4 : rate;
+  const displayRateText =
+    rate > 0
+      ? `${displayRate.toFixed(rainfallUnit === "in" ? 2 : 1)} ${rainfallUnit}/h`
+      : "No rain";
 
   return (
     <svg viewBox="0 0 80 120" className="rain-gauge-svg" aria-label="Rain gauge">
@@ -97,20 +110,35 @@ function RainGauge({ rateMMph }: { rateMMph: number | null }) {
 
       {/* Rate label below gauge */}
       <text x="40" y="118" textAnchor="middle" className="gauge-rate-text">
-        {rate > 0 ? `${rate.toFixed(1)} mm/h` : "No rain"}
+        {displayRateText}
       </text>
     </svg>
   );
 }
 
 export default function RainfallPanel({ wxSummary }: Props) {
+  const { settings } = useSettings();
+  const rainfallUnit = settings?.rainfallUnit ?? "mm";
+
   const today     = wxSummary?.today.rain_mm     ?? 0;
   const yesterday = wxSummary?.yesterday.rain_mm ?? 0;
   const month     = wxSummary?.month.rain_mm     ?? 0;
   const year      = wxSummary?.year.rain_mm      ?? 0;
-  const rate      = wxSummary?.current.rain_rate_mm_per_hour ?? null;
+  const rateMMph  = wxSummary?.current.rain_rate_mm_per_hour ?? null;
 
-  const fmtMM = (val: number) => val.toFixed(1);
+  const toSelectedUnit = (valMM: number) =>
+    rainfallUnit === "in" ? valMM / 25.4 : valMM;
+
+  const fmtRain = (valMM: number) => {
+    const value = toSelectedUnit(valMM);
+    return rainfallUnit === "in" ? value.toFixed(2) : value.toFixed(1);
+  };
+
+  const unitLabel = rainfallUnit === "in" ? "in" : "mm";
+  const rateDisplay =
+    rateMMph !== null
+      ? `${fmtRain(rateMMph)} ${unitLabel}/h`
+      : "--";
 
   return (
     <div className="wx-panel rainfall-panel">
@@ -123,34 +151,32 @@ export default function RainfallPanel({ wxSummary }: Props) {
         <div className="rainfall-totals">
           <div className="rainfall-period">
             <span className="rainfall-period-label">Today</span>
-            <span className="rainfall-period-value">{fmtMM(today)} <span className="rainfall-unit">mm</span></span>
+            <span className="rainfall-period-value">{fmtRain(today)} <span className="rainfall-unit">{unitLabel}</span></span>
           </div>
           <div className="rainfall-period">
             <span className="rainfall-period-label">Yesterday</span>
-            <span className="rainfall-period-value">{fmtMM(yesterday)} <span className="rainfall-unit">mm</span></span>
+            <span className="rainfall-period-value">{fmtRain(yesterday)} <span className="rainfall-unit">{unitLabel}</span></span>
           </div>
           <div className="rainfall-period">
             <span className="rainfall-period-label">This Month</span>
-            <span className="rainfall-period-value">{fmtMM(month)} <span className="rainfall-unit">mm</span></span>
+            <span className="rainfall-period-value">{fmtRain(month)} <span className="rainfall-unit">{unitLabel}</span></span>
           </div>
           <div className="rainfall-period">
             <span className="rainfall-period-label">This Year</span>
-            <span className="rainfall-period-value">{fmtMM(year)} <span className="rainfall-unit">mm</span></span>
+            <span className="rainfall-period-value">{fmtRain(year)} <span className="rainfall-unit">{unitLabel}</span></span>
           </div>
         </div>
 
         {/* Gauge on right side */}
         <div className="rainfall-gauge-col">
-          <RainGauge rateMMph={rate} />
+          <RainGauge rateMMph={rateMMph} rainfallUnit={rainfallUnit} />
         </div>
       </div>
 
       {/* Rate footer */}
       <div className="rainfall-rate-footer">
         <span className="rainfall-rate-label">Current Rain Rate</span>
-        <span className="rainfall-rate-value">
-          {rate !== null ? `${rate.toFixed(1)} mm/h` : "--"}
-        </span>
+        <span className="rainfall-rate-value">{rateDisplay}</span>
       </div>
     </div>
   );

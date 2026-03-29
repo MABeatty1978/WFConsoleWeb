@@ -3,20 +3,29 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
-import { DisplaySettings } from "../types";
 import { apiClient } from "../services/api";
 
 export type TemperatureUnit = "C" | "F";
 export type WindSpeedUnit = "m/s" | "mph" | "kph" | "knots";
 export type PressureUnit = "mb" | "inHg" | "hPa";
+export type RainfallUnit = "mm" | "in";
+export type ForecastSource = "tempest" | "sager";
+export type AtmosPanelMode = "lightning" | "barometer";
 
-export interface AppSettings extends DisplaySettings {
+export interface AppSettings {
   temperatureUnit: TemperatureUnit;
   windSpeedUnit: WindSpeedUnit;
   pressureUnit: PressureUnit;
+  rainfallUnit: RainfallUnit;
+  preferredForecastSource: ForecastSource;
+  preferredAtmosPanel: AtmosPanelMode;
   language: string;
   timeFormat: "12h" | "24h";
   dateFormat: string;
+  panelLayout: "grid" | "list";
+  refreshInterval: number;
+  enableNotifications: boolean;
+  compactMode: boolean;
 }
 
 export interface SettingsContextType {
@@ -27,6 +36,9 @@ export interface SettingsContextType {
   setTemperatureUnit: (unit: TemperatureUnit) => Promise<void>;
   setWindSpeedUnit: (unit: WindSpeedUnit) => Promise<void>;
   setPressureUnit: (unit: PressureUnit) => Promise<void>;
+  setRainfallUnit: (unit: RainfallUnit) => Promise<void>;
+  setPreferredForecastSource: (source: ForecastSource) => Promise<void>;
+  setPreferredAtmosPanel: (mode: AtmosPanelMode) => Promise<void>;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -38,6 +50,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   temperatureUnit: "C",
   windSpeedUnit: "m/s",
   pressureUnit: "mb",
+  rainfallUnit: "mm",
+  preferredForecastSource: "tempest",
+  preferredAtmosPanel: "barometer",
   language: "en",
   timeFormat: "24h",
   dateFormat: "YYYY-MM-DD",
@@ -73,6 +88,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           temperatureUnit: (localStorage.getItem("tempUnit") || displaySettings.temperature_unit || "C") as TemperatureUnit,
           windSpeedUnit: (localStorage.getItem("windUnit") || displaySettings.wind_speed_unit || "m/s") as WindSpeedUnit,
           pressureUnit: (localStorage.getItem("pressureUnit") || displaySettings.pressure_unit || "mb") as PressureUnit,
+          rainfallUnit: (displaySettings.rainfall_unit || localStorage.getItem("rainfallUnit") || "mm") as RainfallUnit,
+          preferredForecastSource: (displaySettings.preferred_forecast_source || localStorage.getItem("preferredForecastSource") || "tempest") as ForecastSource,
+          preferredAtmosPanel: (displaySettings.preferred_atmos_panel || localStorage.getItem("preferredAtmosPanel") || "barometer") as AtmosPanelMode,
         };
 
         setSettings(merged);
@@ -102,8 +120,18 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         ...(newSettings.temperatureUnit !== undefined && { temperature_unit: newSettings.temperatureUnit }),
         ...(newSettings.windSpeedUnit !== undefined && { wind_speed_unit: newSettings.windSpeedUnit }),
         ...(newSettings.pressureUnit !== undefined && { pressure_unit: newSettings.pressureUnit }),
+        ...(newSettings.rainfallUnit !== undefined && { rainfall_unit: newSettings.rainfallUnit }),
+        ...(newSettings.preferredForecastSource !== undefined && { preferred_forecast_source: newSettings.preferredForecastSource }),
+        ...(newSettings.preferredAtmosPanel !== undefined && { preferred_atmos_panel: newSettings.preferredAtmosPanel }),
         ...Object.fromEntries(
-          Object.entries(newSettings).filter(([k]) => !["temperatureUnit", "windSpeedUnit", "pressureUnit"].includes(k))
+          Object.entries(newSettings).filter(([k]) => ![
+            "temperatureUnit",
+            "windSpeedUnit",
+            "pressureUnit",
+            "rainfallUnit",
+            "preferredForecastSource",
+            "preferredAtmosPanel",
+          ].includes(k))
         ),
       };
 
@@ -123,6 +151,15 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       }
       if (newSettings.pressureUnit) {
         localStorage.setItem("pressureUnit", newSettings.pressureUnit);
+      }
+      if (newSettings.rainfallUnit) {
+        localStorage.setItem("rainfallUnit", newSettings.rainfallUnit);
+      }
+      if (newSettings.preferredForecastSource) {
+        localStorage.setItem("preferredForecastSource", newSettings.preferredForecastSource);
+      }
+      if (newSettings.preferredAtmosPanel) {
+        localStorage.setItem("preferredAtmosPanel", newSettings.preferredAtmosPanel);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update settings");
@@ -151,6 +188,27 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     [updateSettings]
   );
 
+  const setRainfallUnit = useCallback(
+    async (unit: RainfallUnit) => {
+      await updateSettings({ rainfallUnit: unit });
+    },
+    [updateSettings]
+  );
+
+  const setPreferredForecastSource = useCallback(
+    async (source: ForecastSource) => {
+      await updateSettings({ preferredForecastSource: source });
+    },
+    [updateSettings]
+  );
+
+  const setPreferredAtmosPanel = useCallback(
+    async (mode: AtmosPanelMode) => {
+      await updateSettings({ preferredAtmosPanel: mode });
+    },
+    [updateSettings]
+  );
+
   const value: SettingsContextType = {
     settings,
     loading,
@@ -159,6 +217,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     setTemperatureUnit,
     setWindSpeedUnit,
     setPressureUnit,
+    setRainfallUnit,
+    setPreferredForecastSource,
+    setPreferredAtmosPanel,
   };
 
   return (

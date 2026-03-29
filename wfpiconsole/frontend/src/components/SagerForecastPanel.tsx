@@ -1,9 +1,10 @@
 /**
- * Sager forecast panel component
+ * Forecast panel component with Tempest/Sager toggle
  */
 
-import React from "react";
-import { useSagerForecast } from "../hooks/useAdvanced";
+import { useEffect, useState } from "react";
+import { useSettings } from "../context/SettingsContext";
+import { useSagerForecast, useTempestForecast } from "../hooks/useAdvanced";
 import "./SagerForecastPanel.css";
 
 const SAGER_DESCRIPTIONS: Record<number, string> = {
@@ -34,30 +35,178 @@ const FORECAST_CODES: Record<number, { text: string; emoji: string; color: strin
   10: { text: "Hail", emoji: "🧊", color: "#64b5f6" },
 };
 
+const TEMPEST_ICON_TO_EMOJI: Record<string, string> = {
+  clear_day: "☀️",
+  clear_night: "🌙",
+  partly_cloudy: "⛅",
+  cloudy: "☁️",
+  rain: "🌧️",
+  thunderstorm: "⛈️",
+  snow: "❄️",
+  fog: "🌫️",
+};
+
 export default function SagerForecastPanel() {
-  const { forecast, loading, error, refetch } = useSagerForecast();
+  const { settings, setPreferredForecastSource } = useSettings();
+  const selectedSource = settings?.preferredForecastSource ?? "tempest";
+  const tempUnit = settings?.temperatureUnit ?? "C";
+  const windUnit = settings?.windSpeedUnit ?? "m/s";
+  const [fallbackNotice, setFallbackNotice] = useState<string | null>(null);
+
+  const formatTemp = (valueC: number | null, digits = 1): string => {
+    if (valueC === null) return "--";
+    const displayValue = tempUnit === "F" ? (valueC * 9) / 5 + 32 : valueC;
+    return `${displayValue.toFixed(digits)} ${tempUnit}`;
+  };
+
+  const formatWind = (valueMps: number | null): string => {
+    if (valueMps === null) return "--";
+
+    const conversions = {
+      "m/s": { factor: 1, label: "m/s" },
+      mph: { factor: 2.236936, label: "mph" },
+      kph: { factor: 3.6, label: "kph" },
+      knots: { factor: 1.943844, label: "knots" },
+    } as const;
+
+    const selected = conversions[windUnit];
+    return `${(valueMps * selected.factor).toFixed(1)} ${selected.label}`;
+  };
+
+  const {
+    forecast: sagerForecast,
+    loading: sagerLoading,
+    error: sagerError,
+    refetch: refetchSager,
+  } = useSagerForecast();
+
+  const {
+    forecast: tempestForecast,
+    loading: tempestLoading,
+    error: tempestError,
+    refetch: refetchTempest,
+  } = useTempestForecast();
+
+  const tempestFailure =
+    !tempestLoading &&
+    (tempestError || tempestForecast?.error || (!tempestForecast ? "No Tempest forecast data available" : null));
+  const activeSource = selectedSource === "tempest" && tempestFailure ? "sager" : selectedSource;
+  const loading = activeSource === "tempest" ? tempestLoading : sagerLoading;
+  const error = activeSource === "tempest" ? tempestError : sagerError;
+
+  useEffect(() => {
+    if (selectedSource !== "tempest" || !tempestFailure) {
+      return;
+    }
+
+    const failureText = String(tempestFailure);
+    const message = failureText.includes("rejected") || failureText.includes("401")
+      ? "WeatherFlow rejected the Tempest API token. Update it in Settings. Showing Sager instead."
+      : failureText.includes("API token")
+      ? "Tempest forecast needs a WeatherFlow API token. Configure it in Settings. Showing Sager instead."
+      : `Tempest forecast unavailable: ${failureText}. Showing Sager instead.`;
+
+    setFallbackNotice(message);
+    void setPreferredForecastSource("sager");
+  }, [selectedSource, tempestFailure, setPreferredForecastSource]);
+
+  const handleSourceChange = async (source: "tempest" | "sager") => {
+    setFallbackNotice(null);
+    if (source === selectedSource) return;
+    await setPreferredForecastSource(source);
+  };
 
   if (loading) {
     return (
       <div className="sager-panel">
-        <h3>Sager Forecast</h3>
+        <div className="panel-header-row">
+          <h3>Forecast</h3>
+          <div className="forecast-toggle-group">
+            <button className={`forecast-toggle-btn ${selectedSource === "tempest" ? "active" : ""}`} onClick={() => void handleSourceChange("tempest")}>Tempest</button>
+            <button className={`forecast-toggle-btn ${selectedSource === "sager" ? "active" : ""}`} onClick={() => void handleSourceChange("sager")}>Sager</button>
+          </div>
+        </div>
         <div className="loading">Loading forecast...</div>
       </div>
     );
   }
 
-  if (error || !forecast) {
+  if (error || (activeSource === "tempest" ? !tempestForecast : !sagerForecast)) {
     return (
       <div className="sager-panel">
-        <h3>Sager Forecast</h3>
+        <div className="panel-header-row">
+          <h3>Forecast</h3>
+          <div className="forecast-toggle-group">
+            <button className={`forecast-toggle-btn ${selectedSource === "tempest" ? "active" : ""}`} onClick={() => void handleSourceChange("tempest")}>Tempest</button>
+            <button className={`forecast-toggle-btn ${selectedSource === "sager" ? "active" : ""}`} onClick={() => void handleSourceChange("sager")}>Sager</button>
+          </div>
+        </div>
         <div className="error">{error || "No forecast data available"}</div>
-        <button className="retry-btn" onClick={refetch}>
+        <button
+          className="retry-btn"
+          onClick={activeSource === "tempest" ? refetchTempest : refetchSager}
+        >
           Retry
         </button>
       </div>
     );
   }
 
+  if (activeSource === "tempest") {
+    const current = tempestForecast?.current ?? {};
+    const daily = tempestForecast?.daily ?? [];
+    const today = (daily[0] as Record<string, unknown> | undefined) ?? {};
+
+    const condition = (current.conditions as string) || (today.conditions as string) || "Forecast available";
+    const iconName = ((current.icon as string) || (today.icon as string) || "").toLowerCase();
+    const icon = TEMPEST_ICON_TO_EMOJI[iconName] || "🌤️";
+    const tempNow = (current.air_temperature as number | undefined) ?? null;
+    const hi = (today.air_temp_high as number | undefined) ?? null;
+    const lo = (today.air_temp_low as number | undefined) ?? null;
+    const precip = (today.precip_probability as number | undefined) ?? null;
+    const wind = (today.wind_avg as number | undefined) ?? (current.wind_avg as number | undefined) ?? null;
+
+    return (
+      <div className="sager-panel">
+        <div className="panel-header-row">
+          <h3>Forecast</h3>
+          <div className="forecast-toggle-group">
+            <button className="forecast-toggle-btn active" onClick={() => void handleSourceChange("tempest")}>Tempest</button>
+            <button className="forecast-toggle-btn" onClick={() => void handleSourceChange("sager")}>Sager</button>
+          </div>
+        </div>
+
+        <div className="forecast-main">
+          <div className="forecast-icon">{icon}</div>
+          <div className="forecast-info">
+            <h2 className="forecast-text">{condition}</h2>
+            <p className="pressure-trend">Tempest Better Forecast</p>
+          </div>
+        </div>
+
+        <div className="forecast-details">
+          <div className="detail-item">
+            <span className="label">Current Temp</span>
+            <span className="value">{formatTemp(tempNow, 1)}</span>
+          </div>
+          <div className="detail-item">
+            <span className="label">High / Low</span>
+            <span className="value">{hi !== null && lo !== null ? `${formatTemp(hi, 0)} / ${formatTemp(lo, 0)}` : "--"}</span>
+          </div>
+          <div className="detail-item">
+            <span className="label">Precip Chance</span>
+            <span className="value">{precip !== null ? `${Math.round(precip)}%` : "--"}</span>
+          </div>
+          <div className="detail-item">
+            <span className="label">Wind</span>
+            <span className="value">{formatWind(wind)}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const forecast = sagerForecast!;
   const forecastInfo = FORECAST_CODES[forecast.forecastCode] || {
     text: "Unknown",
     emoji: "❓",
@@ -67,7 +216,17 @@ export default function SagerForecastPanel() {
 
   return (
     <div className="sager-panel">
-      <h3>Sager Forecast</h3>
+      <div className="panel-header-row">
+        <h3>Forecast</h3>
+        <div className="forecast-toggle-group">
+          <button className="forecast-toggle-btn" onClick={() => void handleSourceChange("tempest")}>Tempest</button>
+          <button className="forecast-toggle-btn active" onClick={() => void handleSourceChange("sager")}>Sager</button>
+        </div>
+      </div>
+
+      {fallbackNotice && (
+        <div className="forecast-inline-notice">{fallbackNotice}</div>
+      )}
       
       <div className="forecast-main">
         <div className="forecast-icon" style={{ color: forecastInfo.color }}>
@@ -101,9 +260,7 @@ export default function SagerForecastPanel() {
 
       <div className="forecast-info-box">
         <p>
-          The Sager Forecast uses barometric pressure trends to predict weather conditions.
-          Based on the observed pressure pattern, the forecast above provides insight into
-          likely weather changes in the next 12-24 hours.
+          Sager mode predicts weather from pressure trends over recent observations.
         </p>
       </div>
     </div>

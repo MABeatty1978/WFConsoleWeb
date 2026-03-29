@@ -28,6 +28,7 @@ export interface CurrentConditions {
   feels_like_f: number | null;
   humidity: number | null;
   pressure_mb: number | null;
+  pressure_trend: "rising" | "falling" | "steady" | null;
   wind_speed_mps: number | null;
   wind_speed_mph: number | null;
   wind_gust_mps: number | null;
@@ -98,6 +99,9 @@ export interface DisplaySettings {
   temperature_unit: "C" | "F";
   wind_speed_unit: "m/s" | "mph" | "kph" | "knots";
   pressure_unit: "mb" | "inHg" | "hPa";
+  rainfall_unit: "mm" | "in";
+  preferred_forecast_source: "tempest" | "sager";
+  preferred_atmos_panel: "lightning" | "barometer";
   current_theme: string;
   panels_per_row: number;
   feels_like_threshold_cold_c: number;
@@ -180,5 +184,20 @@ export interface WxSummary {
     rain_rate_mm_per_hour: number | null;
     temp_diff_24h_c: number | null;
     temp_trend_c: number | null;
+  };
+}
+
+export interface TempestForecastResponse {
+  source: "tempest";
+  fetchedAt?: number;
+  timezone?: string;
+  error?: string;
+  current?: Record<string, unknown> | null;
+  daily: Array<Record<string, unknown>>;
+  hourly: Array<Record<string, unknown>>;
+  location?: {
+    stationId?: string;
+    latitude?: number | null;
+    longitude?: number | null;
   };
 }

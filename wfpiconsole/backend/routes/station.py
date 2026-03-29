@@ -1,7 +1,7 @@
 """Station observations and data endpoints"""
 import logging
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_
@@ -122,6 +122,7 @@ class CurrentConditionsResponse(BaseModel):
     feels_like_f: Optional[float]
     humidity: Optional[float]
     pressure_mb: Optional[float]
+    pressure_trend: Optional[str]
     wind_speed_mps: Optional[float]
     wind_speed_mph: Optional[float]
     wind_gust_mps: Optional[float]
@@ -234,6 +235,30 @@ async def get_current_conditions(db: Session = Depends(get_db)):
     rain_mm = latest.rainfall_rate
     rain_in = rain_mm / 25.4 if rain_mm is not None else None
 
+    # Pressure trend over ~3 hours (fallback to stable when insufficient data).
+    pressure_trend: Optional[str] = None
+    if latest.sea_level_pressure is not None and effective_timestamp is not None:
+        window_start = effective_timestamp - timedelta(hours=3)
+        baseline_obs = (
+            db.query(ObservationHistory)
+            .filter(
+                ObservationHistory.timestamp >= window_start,
+                ObservationHistory.timestamp <= effective_timestamp,
+                ObservationHistory.sea_level_pressure.isnot(None),
+            )
+            .order_by(ObservationHistory.timestamp.asc())
+            .first()
+        )
+
+        if baseline_obs and baseline_obs.sea_level_pressure is not None:
+            delta = latest.sea_level_pressure - baseline_obs.sea_level_pressure
+            if abs(delta) < 0.6:
+                pressure_trend = "steady"
+            elif delta > 0:
+                pressure_trend = "rising"
+            else:
+                pressure_trend = "falling"
+
     # Wind direction (cardinal)
     wind_dir = wind_dir_value if wind_dir_value is not None else 0
     cardinal_directions = [
@@ -278,6 +303,7 @@ async def get_current_conditions(db: Session = Depends(get_db)):
         feels_like_f=feels_like_f,
         humidity=latest.relative_humidity,
         pressure_mb=latest.sea_level_pressure,
+        pressure_trend=pressure_trend,
         wind_speed_mps=wind_mps,
         wind_speed_mph=wind_mph,
         wind_gust_mps=wind_gust_mps,

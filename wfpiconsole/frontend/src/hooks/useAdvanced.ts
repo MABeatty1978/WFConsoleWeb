@@ -4,8 +4,13 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { apiClient } from "../services/api";
-import { WxSummary } from "../types";
+import { TempestForecastResponse, WxSummary } from "../types";
 import { wsService } from "../services/websocket";
+
+type DataPoint = {
+  timestamp: string;
+  value: number | null;
+};
 
 export interface SagerForecast {
   seaLevelPressureTrend: string;
@@ -13,6 +18,8 @@ export interface SagerForecast {
   forecastText: string;
   forecastCode: number;
 }
+
+export type TempestForecast = TempestForecastResponse;
 
 export interface AstronomicalData {
   sunriseTime: number;
@@ -22,6 +29,8 @@ export interface AstronomicalData {
   moonIllumination: number;
   moonsetTime?: number;
   moonriseTime?: number;
+  timezone?: string;
+  dataSource?: string;
 }
 
 /**
@@ -41,6 +50,51 @@ export function useSagerForecast() {
       setForecast(data || null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch forecast");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchForecast();
+    const interval = setInterval(fetchForecast, 3600000); // Refresh hourly
+
+    return () => clearInterval(interval);
+  }, [fetchForecast]);
+
+  return { forecast, loading, error, refetch: fetchForecast };
+}
+
+/**
+ * Hook for Tempest Better Forecast data
+ */
+export function useTempestForecast() {
+  const [forecast, setForecast] = useState<TempestForecast | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchForecast = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await apiClient.getTempestForecast?.();
+
+      if (!data) {
+        setForecast(null);
+        setError("No Tempest forecast data available");
+        return;
+      }
+
+      if (data.error) {
+        setForecast(null);
+        setError(data.error);
+        return;
+      }
+
+      setForecast(data);
+    } catch (err) {
+      setForecast(null);
+      setError(err instanceof Error ? err.message : "Failed to fetch Tempest forecast");
     } finally {
       setLoading(false);
     }
@@ -201,26 +255,64 @@ export function useDataExport() {
         ),
       ]);
 
-      // Merge time series data
-      const timestamps = temp.map((item: any) => item.timestamp);
-      const rows = [
+      // Merge time series by timestamp from all returned metrics.
+      const timestampSet = new Set<string>();
+      const collectTimestamps = (points: DataPoint[]) => {
+        points.forEach((point) => timestampSet.add(point.timestamp));
+      };
+
+      collectTimestamps(temp.data_points);
+      collectTimestamps(humidity.data_points);
+      collectTimestamps(pressure.data_points);
+      collectTimestamps(wind.data_points);
+      collectTimestamps(rainfall.data_points);
+      collectTimestamps(solar.data_points);
+
+      const toEpochSeconds = (ts: string): number => {
+        const parsed = Date.parse(ts);
+        return Number.isNaN(parsed) ? 0 : Math.floor(parsed / 1000);
+      };
+
+      const timestamps = Array.from(timestampSet).sort(
+        (a, b) => toEpochSeconds(a) - toEpochSeconds(b)
+      );
+
+      const toValueMap = (points: DataPoint[]): Map<string, number | null> => {
+        const map = new Map<string, number | null>();
+        points.forEach((point) => {
+          map.set(point.timestamp, point.value);
+        });
+        return map;
+      };
+
+      const tempMap = toValueMap(temp.data_points);
+      const humidityMap = toValueMap(humidity.data_points);
+      const pressureMap = toValueMap(pressure.data_points);
+      const windMap = toValueMap(wind.data_points);
+      const rainfallMap = toValueMap(rainfall.data_points);
+      const solarMap = toValueMap(solar.data_points);
+
+      const rows: Array<Array<string | number>> = [
         ["Timestamp", "Temperature (°C)", "Humidity (%)", "Pressure (mb)", "Wind Speed (m/s)", "Rainfall (mm)", "Solar (W/m²)"],
       ];
 
-      timestamps.forEach((ts: number, idx: number) => {
+      timestamps.forEach((ts: string) => {
+        const epoch = toEpochSeconds(ts);
         rows.push([
-          new Date(ts * 1000).toISOString(),
-          temp[idx]?.temperature ?? "",
-          humidity[idx]?.humidity ?? "",
-          pressure[idx]?.pressure ?? "",
-          wind[idx]?.windSpeed ?? "",
-          rainfall[idx]?.rainfall ?? "",
-          solar[idx]?.solarRadiation ?? "",
+          epoch > 0 ? new Date(epoch * 1000).toISOString() : ts,
+          tempMap.get(ts) ?? "",
+          humidityMap.get(ts) ?? "",
+          pressureMap.get(ts) ?? "",
+          windMap.get(ts) ?? "",
+          rainfallMap.get(ts) ?? "",
+          solarMap.get(ts) ?? "",
         ]);
       });
 
       // Convert to CSV
-      const csv = rows.map((row: any[]) => row.map((cell) => `"${cell}"`).join(",")).join("\n");
+      const csv = rows
+        .map((row) => row.map((cell) => `"${String(cell)}"`).join(","))
+        .join("\n");
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");

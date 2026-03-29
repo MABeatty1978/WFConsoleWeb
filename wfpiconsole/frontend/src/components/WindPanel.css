@@ -129,6 +129,71 @@
 .wind-direction-text { margin-left: auto; color: var(--wind-text-muted); }
 .wind-direction-text strong { color: var(--wind-highlight); }
 
+@media (min-width: 1181px) {
+  .primary-panels-grid .wx-panel {
+    padding: 0.9rem 1rem;
+    gap: 0.5rem;
+  }
+
+  .primary-panels-grid .wx-panel-header {
+    gap: 0.45rem;
+  }
+
+  .primary-panels-grid .wx-panel-title {
+    font-size: 0.68rem;
+  }
+
+  .primary-panels-grid .wind-body {
+    gap: 0.5rem;
+  }
+
+  .primary-panels-grid .wind-stat-block {
+    margin-bottom: 0.3rem;
+  }
+
+  .primary-panels-grid .wind-stat-label,
+  .primary-panels-grid .wind-large-caption {
+    font-size: 0.62rem;
+  }
+
+  .primary-panels-grid .wind-stat-sub {
+    font-size: 0.8rem;
+  }
+
+  .primary-panels-grid .wind-large-value {
+    font-size: 1.6rem;
+  }
+
+  .primary-panels-grid .wind-large-unit,
+  .primary-panels-grid .wind-unit {
+    font-size: 0.68rem;
+  }
+
+  .primary-panels-grid .compass-rose-svg {
+    width: 100px;
+    height: 100px;
+  }
+
+  .primary-panels-grid .wind-dir-deg {
+    font-size: 0.95rem;
+  }
+
+  .primary-panels-grid .wind-dir-cardinal {
+    font-size: 0.72rem;
+  }
+
+  .primary-panels-grid .wind-beaufort {
+    gap: 0.4rem;
+    padding-top: 0.45rem;
+    font-size: 0.7rem;
+    flex-wrap: wrap;
+  }
+
+  .primary-panels-grid .beaufort-scale {
+    min-width: 0;
+  }
+}
+
 /* ---- responsive ---- */
 @media (max-width: 520px) {
   .compass-rose-svg { width: 110px; height: 110px; }

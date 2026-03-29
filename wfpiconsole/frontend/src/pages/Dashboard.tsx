@@ -9,12 +9,13 @@ import TemperaturePanel from "../components/TemperaturePanel";
 import RainfallPanel from "../components/RainfallPanel";
 import SagerForecastPanel from "../components/SagerForecastPanel";
 import AstronomicalPanel from "../components/AstronomicalPanel";
+import LightningBarometerPanel from "../components/LightningBarometerPanel";
 import HistoryChartsPanel from "../components/HistoryChartsPanel";
 import AlertsPanel from "../components/AlertsPanel";
 import "./Dashboard.css";
 
 export default function Dashboard() {
-  const { observation, conditions, rapidWind, loading: condLoading, error: condError } = useObservation(true);
+  const { observation, conditions, loading: condLoading, error: condError } = useObservation(true);
   const { summary: wxSummary } = useWxSummary();
   const { error: wsError } = useWebSocket(true);
 
@@ -37,23 +38,22 @@ export default function Dashboard() {
           </div>
         ) : (
           <>
-            {/* ── Primary 2×2 panel grid ── */}
+            {/* ── Primary 3×2 panel grid ── */}
             <section className="primary-panels-grid">
+              <SagerForecastPanel />
               <TemperaturePanel conditions={conditions} wxSummary={wxSummary} />
               <WindPanel
-                rapidWind={rapidWind}
                 wxSummary={wxSummary}
                 currentWindMps={conditions?.wind_speed_mps ?? null}
                 currentGustMps={conditions?.wind_gust_mps ?? null}
                 currentWindDirDeg={conditions?.wind_direction_deg ?? null}
               />
-              <RainfallPanel    wxSummary={wxSummary} />
-              <SagerForecastPanel />
-            </section>
-
-            {/* ── Astronomy & secondary info ── */}
-            <section className="secondary-panels-grid">
               <AstronomicalPanel />
+              <RainfallPanel wxSummary={wxSummary} />
+              <LightningBarometerPanel
+                conditions={conditions}
+                observation={observation}
+              />
             </section>
 
             {/* ── History charts ── */}

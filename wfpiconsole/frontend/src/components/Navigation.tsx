@@ -2,7 +2,7 @@
  * Navigation component
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { wsService } from "../services/websocket";
@@ -94,6 +94,18 @@ export default function Navigation() {
             >
               ⬇ Export
             </button>
+          </li>
+
+          <li>
+            <a
+              className="nav-support-link"
+              href="https://ko-fi.com/michaelbeatty9142002"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Support on Ko-fi ☕
+            </a>
           </li>
 
           <li className="nav-separator"></li>

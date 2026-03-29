@@ -2,11 +2,10 @@
  * Advanced analytics page
  */
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   LineChart,
   Line,
-  BarChart,
   Bar,
   ComposedChart,
   XAxis,
@@ -83,6 +82,28 @@ export default function AnalyticsPage() {
     }));
   }, [temperature, humidity, pressure, wind]);
 
+  // Calculate data ranges for fixed domains
+  const dataRanges = useMemo(() => {
+    const ranges: { [key: string]: [number, number] } = {};
+
+    const calculateRange = (data: any[], key: string) => {
+      if (!data || data.length === 0) return null;
+      const values = data.map((d: any) => d[key]).filter((v: any) => v !== null);
+      if (values.length === 0) return null;
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const padding = (max - min) * 0.05;
+      return [Math.max(0, min - padding), max + padding] as [number, number];
+    };
+
+    ranges.temperature = calculateRange(temperature, "temperature") || [0, 100];
+    ranges.humidity = calculateRange(humidity, "humidity") || [0, 100];
+    ranges.pressure = calculateRange(pressure, "pressure") || [900, 1050];
+    ranges.wind = calculateRange(wind, "windSpeed") || [0, 50];
+
+    return ranges;
+  }, [temperature, humidity, pressure, wind]);
+
   return (
     <div className="analytics-page">
       <header className="analytics-header">
@@ -148,8 +169,8 @@ export default function AnalyticsPage() {
                     new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
                   }
                 />
-                <YAxis yAxisId="left" stroke="rgba(255, 255, 255, 0.5)" />
-                <YAxis yAxisId="right" orientation="right" stroke="rgba(255, 255, 255, 0.5)" />
+                <YAxis yAxisId="left" stroke="rgba(255, 255, 255, 0.5)" domain={dataRanges.temperature} />
+                <YAxis yAxisId="right" orientation="right" stroke="rgba(255, 255, 255, 0.5)" domain={dataRanges.humidity} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "var(--color-primary)",
@@ -185,8 +206,8 @@ export default function AnalyticsPage() {
                     new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
                   }
                 />
-                <YAxis yAxisId="left" stroke="rgba(255, 255, 255, 0.5)" />
-                <YAxis yAxisId="right" orientation="right" stroke="rgba(255, 255, 255, 0.5)" />
+                <YAxis yAxisId="left" stroke="rgba(255, 255, 255, 0.5)" domain={dataRanges.temperature} />
+                <YAxis yAxisId="right" orientation="right" stroke="rgba(255, 255, 255, 0.5)" domain={dataRanges.humidity} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "var(--color-primary)",
@@ -229,8 +250,8 @@ export default function AnalyticsPage() {
                     new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
                   }
                 />
-                <YAxis yAxisId="left" stroke="rgba(255, 255, 255, 0.5)" />
-                <YAxis yAxisId="right" orientation="right" stroke="rgba(255, 255, 255, 0.5)" />
+                <YAxis yAxisId="left" stroke="rgba(255, 255, 255, 0.5)" domain={dataRanges.pressure} />
+                <YAxis yAxisId="right" orientation="right" stroke="rgba(255, 255, 255, 0.5)" domain={dataRanges.wind} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "var(--color-primary)",

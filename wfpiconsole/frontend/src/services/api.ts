@@ -14,12 +14,14 @@ import {
   AuthUser,
   HealthStatus,
   WxSummary,
+  TempestForecastResponse,
 } from "../types";
 
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:8000/api";
 
 class ApiClient {
   private token: string | null = null;
+  private readonly deviceKeyStorageName = "wf_device_key";
 
   constructor() {
     // Load token from localStorage
@@ -39,6 +41,7 @@ class ApiClient {
   private getHeaders(includeAuth = true): HeadersInit {
     const headers: HeadersInit = {
       "Content-Type": "application/json",
+      "X-Device-Key": this.getOrCreateDeviceKey(),
     };
 
     if (includeAuth && this.token) {
@@ -46,6 +49,21 @@ class ApiClient {
     }
 
     return headers;
+  }
+
+  private getOrCreateDeviceKey(): string {
+    const existing = localStorage.getItem(this.deviceKeyStorageName);
+    if (existing) {
+      return existing;
+    }
+
+    const generated =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `wf-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+    localStorage.setItem(this.deviceKeyStorageName, generated);
+    return generated;
   }
 
   private async request<T>(
@@ -155,6 +173,29 @@ class ApiClient {
       "/config/station",
       config
     );
+  }
+
+  async listApiKeys(): Promise<{
+    api_keys: Array<{
+      service: string;
+      is_configured: boolean;
+      is_valid: boolean;
+      last_verified: string | null;
+    }>;
+  }> {
+    return this.request("GET", "/config/api-keys");
+  }
+
+  async configureApiKey(payload: {
+    service: string;
+    key: string;
+    secret?: string | null;
+  }): Promise<Record<string, unknown>> {
+    return this.request("POST", "/config/api-keys", payload);
+  }
+
+  async deleteApiKey(service: string): Promise<Record<string, unknown>> {
+    return this.request("DELETE", `/config/api-keys/${service}`);
   }
 
   // History endpoints
@@ -285,6 +326,10 @@ class ApiClient {
   // Forecast endpoints
   async getSagerForecast(): Promise<any> {
     return this.request<any>("GET", "/forecast/sager");
+  }
+
+  async getTempestForecast(): Promise<TempestForecastResponse> {
+    return this.request<TempestForecastResponse>("GET", "/forecast/tempest");
   }
 
   async getAstronomicalData(): Promise<any> {

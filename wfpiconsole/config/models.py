@@ -76,16 +76,21 @@ class DisplaySettings(Base):
     __tablename__ = "display_settings"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("admin_users.id"), nullable=True, index=True)
+    device_key = Column(String(128), nullable=True, index=True)
     
     # Units
     temperature_unit = Column(String(1), default="C")  # C or F
     wind_unit = Column(String(8), default="m/s")  # m/s, mph, kph, knots
     pressure_unit = Column(String(6), default="mb")  # mb, inHg
+    rainfall_unit = Column(String(2), default="mm")  # mm, in
     distance_unit = Column(String(3), default="km")  # km, mi
     
     # Display preferences
     current_theme = Column(String(64), default="dark-minimalist")
     primary_panel_count = Column(Integer, default=6)
+    preferred_forecast_source = Column(String(16), default="tempest")  # tempest, sager
+    preferred_atmos_panel = Column(String(16), default="barometer")  # lightning, barometer
     
     # Feels-like temperature thresholds
     feels_like_cold_threshold = Column(Float, default=13.0)

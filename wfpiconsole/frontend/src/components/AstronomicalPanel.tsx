@@ -2,12 +2,27 @@
  * Astronomical data panel component
  */
 
-import React, { useMemo } from "react";
+import { useMemo } from "react";
+import { useState } from "react";
 import { useAstronomicalData } from "../hooks/useAdvanced";
 import "./AstronomicalPanel.css";
 
 export default function AstronomicalPanel() {
   const { data, loading, error, refetch } = useAstronomicalData();
+  const [activeMode, setActiveMode] = useState<"solar" | "lunar">("solar");
+
+  const timeFormatOptions = useMemo<Intl.DateTimeFormatOptions>(() => {
+    const options: Intl.DateTimeFormatOptions = {
+      hour: "2-digit",
+      minute: "2-digit",
+    };
+
+    if (data?.timezone) {
+      options.timeZone = data.timezone;
+    }
+
+    return options;
+  }, [data?.timezone]);
 
   const sunProgress = useMemo(() => {
     if (!data) return 0;
@@ -37,7 +52,13 @@ export default function AstronomicalPanel() {
   if (loading) {
     return (
       <div className="astro-panel">
-        <h3>Astronomical Data</h3>
+        <div className="astro-header-row">
+          <h3>Astronomical Data</h3>
+          <div className="astro-toggle-group">
+            <button className={`astro-toggle-btn ${activeMode === "solar" ? "active" : ""}`} onClick={() => setActiveMode("solar")}>Solar</button>
+            <button className={`astro-toggle-btn ${activeMode === "lunar" ? "active" : ""}`} onClick={() => setActiveMode("lunar")}>Lunar</button>
+          </div>
+        </div>
         <div className="loading">Loading astronomical data...</div>
       </div>
     );
@@ -46,7 +67,13 @@ export default function AstronomicalPanel() {
   if (error || !data) {
     return (
       <div className="astro-panel">
-        <h3>Astronomical Data</h3>
+        <div className="astro-header-row">
+          <h3>Astronomical Data</h3>
+          <div className="astro-toggle-group">
+            <button className={`astro-toggle-btn ${activeMode === "solar" ? "active" : ""}`} onClick={() => setActiveMode("solar")}>Solar</button>
+            <button className={`astro-toggle-btn ${activeMode === "lunar" ? "active" : ""}`} onClick={() => setActiveMode("lunar")}>Lunar</button>
+          </div>
+        </div>
         <div className="error">{error || "No astronomical data available"}</div>
         <button className="retry-btn" onClick={refetch}>
           Retry
@@ -62,103 +89,115 @@ export default function AstronomicalPanel() {
 
   return (
     <div className="astro-panel">
-      <h3>Astronomical Data</h3>
+      <div className="astro-header-row">
+        <h3>Astronomical Data</h3>
+        <div className="astro-toggle-group">
+          <button
+            className={`astro-toggle-btn ${activeMode === "solar" ? "active" : ""}`}
+            onClick={() => setActiveMode("solar")}
+          >
+            Solar
+          </button>
+          <button
+            className={`astro-toggle-btn ${activeMode === "lunar" ? "active" : ""}`}
+            onClick={() => setActiveMode("lunar")}
+          >
+            Lunar
+          </button>
+        </div>
+      </div>
 
       <div className="astro-grid">
         <div className="astro-section">
-          <h4>☀️ Solar Data</h4>
-          
-          <div className="sun-progress">
-            <div className="sun-bar">
-              <div className="sun-position" style={{ left: `${Math.max(0, Math.min(100, sunProgress))}%` }}>
-                ☀️
+          {activeMode === "solar" ? (
+            <>
+              <h4>☀️ Solar Data</h4>
+
+              <div className="sun-progress">
+                <div className="sun-bar">
+                  <div className="sun-position" style={{ left: `${Math.max(0, Math.min(100, sunProgress))}%` }}>
+                    ☀️
+                  </div>
+                  <div className="sun-marker sunrise">Sunrise</div>
+                  <div className="sun-marker sunset">Sunset</div>
+                </div>
               </div>
-              <div className="sun-marker sunrise">Sunrise</div>
-              <div className="sun-marker sunset">Sunset</div>
-            </div>
-          </div>
 
-          <div className="data-item">
-            <span className="label">Sunrise</span>
-            <span className="value">{sunrise.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-          </div>
-
-          <div className="data-item">
-            <span className="label">Solar Noon</span>
-            <span className="value">{solarNoon.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-          </div>
-
-          <div className="data-item">
-            <span className="label">Sunset</span>
-            <span className="value">{sunset.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-          </div>
-
-          <div className="data-item">
-            <span className="label">Daylight Duration</span>
-            <span className="value">{Math.floor(daylight)}h {Math.round((daylight % 1) * 60)}m</span>
-          </div>
-        </div>
-
-        <div className="astro-section">
-          <h4>🌙 Lunar Data</h4>
-
-          <div className="moon-display">
-            <div className="moon-icon">{moonPhaseEmoji}</div>
-            <div className="moon-illumination">
-              <div className="illumination-ring">
-                <div
-                  className="illumination-fill"
-                  style={{ width: `${(data.moonIllumination || 0) * 100}%` }}
-                />
+              <div className="data-item">
+                <span className="label">Sunrise</span>
+                <span className="value">{sunrise.toLocaleTimeString([], timeFormatOptions)}</span>
               </div>
-              <span className="illumination-text">
-                {Math.round((data.moonIllumination || 0) * 100)}%
-              </span>
-            </div>
-          </div>
 
-          <div className="data-item">
-            <span className="label">Moon Phase</span>
-            <span className="value">{getMoonPhaseLabel(data.moonPhase)}</span>
-          </div>
+              <div className="data-item">
+                <span className="label">Solar Noon</span>
+                <span className="value">{solarNoon.toLocaleTimeString([], timeFormatOptions)}</span>
+              </div>
 
-          <div className="data-item">
-            <span className="label">Illumination</span>
-            <span className="value">{Math.round((data.moonIllumination || 0) * 100)}%</span>
-          </div>
+              <div className="data-item">
+                <span className="label">Sunset</span>
+                <span className="value">{sunset.toLocaleTimeString([], timeFormatOptions)}</span>
+              </div>
 
-          {data.moonriseTime && (
-            <div className="data-item">
-              <span className="label">Moonrise</span>
-              <span className="value">
-                {new Date(data.moonriseTime * 1000).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            </div>
-          )}
+              <div className="data-item">
+                <span className="label">Daylight Duration</span>
+                <span className="value">{Math.floor(daylight)}h {Math.round((daylight % 1) * 60)}m</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <h4>🌙 Lunar Data</h4>
 
-          {data.moonsetTime && (
-            <div className="data-item">
-              <span className="label">Moonset</span>
-              <span className="value">
-                {new Date(data.moonsetTime * 1000).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            </div>
+              <div className="moon-display">
+                <div className="moon-icon">{moonPhaseEmoji}</div>
+                <div className="moon-illumination">
+                  <div className="illumination-ring">
+                    <div
+                      className="illumination-fill"
+                      style={{ width: `${(data.moonIllumination || 0) * 100}%` }}
+                    />
+                  </div>
+                  <span className="illumination-text">
+                    {Math.round((data.moonIllumination || 0) * 100)}%
+                  </span>
+                </div>
+              </div>
+
+              <div className="data-item">
+                <span className="label">Moon Phase</span>
+                <span className="value">{getMoonPhaseLabel(data.moonPhase)}</span>
+              </div>
+
+              <div className="data-item">
+                <span className="label">Illumination</span>
+                <span className="value">{Math.round((data.moonIllumination || 0) * 100)}%</span>
+              </div>
+
+              {data.moonriseTime && (
+                <div className="data-item">
+                  <span className="label">Moonrise</span>
+                  <span className="value">
+                    {new Date(data.moonriseTime * 1000).toLocaleTimeString([], {
+                      ...timeFormatOptions,
+                    })}
+                  </span>
+                </div>
+              )}
+
+              {data.moonsetTime && (
+                <div className="data-item">
+                  <span className="label">Moonset</span>
+                  <span className="value">
+                    {new Date(data.moonsetTime * 1000).toLocaleTimeString([], {
+                      ...timeFormatOptions,
+                    })}
+                  </span>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
 
-      <div className="astro-info">
-        <p>
-          Sunrise and sunset times are computed for the station's location
-          and are adjusted for atmospheric refraction.
-        </p>
-      </div>
     </div>
   );
 }

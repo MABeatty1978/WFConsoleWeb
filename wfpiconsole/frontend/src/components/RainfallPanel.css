@@ -103,6 +103,42 @@
   color: #64b5f6;
 }
 
+@media (min-width: 1181px) {
+  .primary-panels-grid .rainfall-body {
+    gap: 0.65rem;
+  }
+
+  .primary-panels-grid .rainfall-totals {
+    gap: 0.45rem;
+  }
+
+  .primary-panels-grid .rainfall-period {
+    padding: 0.45rem 0.55rem;
+  }
+
+  .primary-panels-grid .rainfall-period-label {
+    font-size: 0.58rem;
+  }
+
+  .primary-panels-grid .rainfall-period-value {
+    font-size: 1rem;
+  }
+
+  .primary-panels-grid .rainfall-unit {
+    font-size: 0.65rem;
+  }
+
+  .primary-panels-grid .rain-gauge-svg {
+    width: 58px;
+    height: 92px;
+  }
+
+  .primary-panels-grid .rainfall-rate-footer {
+    padding-top: 0.4rem;
+    font-size: 0.7rem;
+  }
+}
+
 /* ---- responsive ---- */
 @media (max-width: 520px) {
   .rainfall-body { grid-template-columns: 1fr; }

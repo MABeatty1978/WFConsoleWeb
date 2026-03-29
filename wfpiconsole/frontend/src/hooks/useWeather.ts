@@ -3,9 +3,64 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Observation, CurrentConditions, StationInfo } from "../types";
+import { flushSync } from "react-dom";
+import { Observation, CurrentConditions, StationInfo, TimeSeriesData } from "../types";
 import { apiClient } from "../services/api";
 import { wsService } from "../services/websocket";
+
+type HistoricalChartPoint = {
+  timestamp: number;
+  [key: string]: number | null;
+};
+
+type RapidWindObservation = {
+  timestamp: string;
+  wind_speed_mps: number | null;
+  wind_gust_mps: number | null;
+  wind_direction_deg: number | null;
+};
+
+const normalizeRealtimeObservation = (payload: Record<string, unknown>): Partial<Observation> => ({
+  timestamp: typeof payload.timestamp === "string" ? payload.timestamp : new Date().toISOString(),
+  packet_type: typeof payload.packet_type === "string" ? payload.packet_type : null,
+  device_id: typeof payload.device_id === "string" ? payload.device_id : null,
+  temp_c: typeof payload.air_temperature === "number" ? payload.air_temperature : null,
+  humidity: typeof payload.relative_humidity === "number" ? payload.relative_humidity : null,
+  pressure_mb: typeof payload.sea_level_pressure === "number" ? payload.sea_level_pressure : null,
+  wind_speed_mps: typeof payload.wind_speed === "number" ? payload.wind_speed : null,
+  wind_gust_mps: typeof payload.wind_gust === "number" ? payload.wind_gust : null,
+  wind_direction_deg: typeof payload.wind_direction === "number" ? payload.wind_direction : null,
+  rainfall_mm: typeof payload.rainfall_rate === "number" ? payload.rainfall_rate : null,
+  solar_radiation_wm2: typeof payload.solar_radiation === "number" ? payload.solar_radiation : null,
+  uv_index: typeof payload.uv_index === "number" ? payload.uv_index : null,
+  lightning_strike_count: typeof payload.lightning_strike_count_3h === "number" ? payload.lightning_strike_count_3h : null,
+  lightning_strike_last_distance_km: typeof payload.lightning_strike_last_distance === "number" ? payload.lightning_strike_last_distance : null,
+  battery_voltage: typeof payload.battery_voltage === "number" ? payload.battery_voltage : null,
+  signal_strength: typeof payload.rssi === "number" ? payload.rssi : null,
+});
+
+const isRapidWindLikePacket = (normalized: Partial<Observation>): boolean => {
+  if ((normalized.packet_type ?? null) === "rapid_wind") {
+    return true;
+  }
+
+  const hasWind = (
+    normalized.wind_speed_mps !== null ||
+    normalized.wind_gust_mps !== null ||
+    normalized.wind_direction_deg !== null
+  );
+
+  const hasNonWindObservationFields = (
+    normalized.temp_c !== null ||
+    normalized.humidity !== null ||
+    normalized.pressure_mb !== null ||
+    normalized.rainfall_mm !== null ||
+    normalized.solar_radiation_wm2 !== null ||
+    normalized.uv_index !== null
+  );
+
+  return hasWind && !hasNonWindObservationFields;
+};
 
 /**
  * Hook for managing current weather observations
@@ -13,68 +68,9 @@ import { wsService } from "../services/websocket";
 export function useObservation(autoRefresh = true) {
   const [observation, setObservation] = useState<Observation | null>(null);
   const [conditions, setConditions] = useState<CurrentConditions | null>(null);
-  const [rapidWind, setRapidWind] = useState<{
-    timestamp: string;
-    wind_speed_mps: number | null;
-    wind_gust_mps: number | null;
-    wind_direction_deg: number | null;
-  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastObservationTsMsRef = useRef<number>(0);
-  const lastRapidWindTsMsRef = useRef<number>(0);
-
-  const getWindCardinal = useCallback((degrees: number | null | undefined): string => {
-    if (degrees === null || degrees === undefined) {
-      return "--";
-    }
-
-    const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-    const index = Math.round(degrees / 22.5) % 16;
-    return directions[index];
-  }, []);
-
-  const normalizeRealtimeObservation = useCallback((payload: Record<string, unknown>): Partial<Observation> => ({
-    timestamp: typeof payload.timestamp === "string" ? payload.timestamp : new Date().toISOString(),
-    packet_type: typeof payload.packet_type === "string" ? payload.packet_type : null,
-    device_id: typeof payload.device_id === "string" ? payload.device_id : null,
-    temp_c: typeof payload.air_temperature === "number" ? payload.air_temperature : null,
-    humidity: typeof payload.relative_humidity === "number" ? payload.relative_humidity : null,
-    pressure_mb: typeof payload.sea_level_pressure === "number" ? payload.sea_level_pressure : null,
-    wind_speed_mps: typeof payload.wind_speed === "number" ? payload.wind_speed : null,
-    wind_gust_mps: typeof payload.wind_gust === "number" ? payload.wind_gust : null,
-    wind_direction_deg: typeof payload.wind_direction === "number" ? payload.wind_direction : null,
-    rainfall_mm: typeof payload.rainfall_rate === "number" ? payload.rainfall_rate : null,
-    solar_radiation_wm2: typeof payload.solar_radiation === "number" ? payload.solar_radiation : null,
-    uv_index: typeof payload.uv_index === "number" ? payload.uv_index : null,
-    lightning_strike_count: typeof payload.lightning_strike_count_3h === "number" ? payload.lightning_strike_count_3h : null,
-    lightning_strike_last_distance_km: typeof payload.lightning_strike_last_distance === "number" ? payload.lightning_strike_last_distance : null,
-    battery_voltage: typeof payload.battery_voltage === "number" ? payload.battery_voltage : null,
-    signal_strength: typeof payload.rssi === "number" ? payload.rssi : null,
-  }), []);
-
-  const isRapidWindLikePacket = useCallback((normalized: Partial<Observation>): boolean => {
-    if ((normalized.packet_type ?? null) === "rapid_wind") {
-      return true;
-    }
-
-    const hasWind = (
-      normalized.wind_speed_mps !== null ||
-      normalized.wind_gust_mps !== null ||
-      normalized.wind_direction_deg !== null
-    );
-
-    const hasNonWindObservationFields = (
-      normalized.temp_c !== null ||
-      normalized.humidity !== null ||
-      normalized.pressure_mb !== null ||
-      normalized.rainfall_mm !== null ||
-      normalized.solar_radiation_wm2 !== null ||
-      normalized.uv_index !== null
-    );
-
-    return hasWind && !hasNonWindObservationFields;
-  }, []);
 
   const fetchLatest = useCallback(async () => {
     try {
@@ -113,6 +109,10 @@ export function useObservation(autoRefresh = true) {
         return;
       }
 
+      if (isRapidWindPacket) {
+        return;
+      }
+
       if (Number.isFinite(obsTsMs)) {
         lastObservationTsMsRef.current = obsTsMs;
       }
@@ -128,66 +128,67 @@ export function useObservation(autoRefresh = true) {
         };
       });
 
-      if (isRapidWindPacket) {
-        if (Number.isFinite(obsTsMs) && obsTsMs < lastRapidWindTsMsRef.current) {
-          return;
-        }
-
-        if (Number.isFinite(obsTsMs)) {
-          lastRapidWindTsMsRef.current = obsTsMs;
-        }
-
-        setRapidWind((current) => {
-          const speed = normalized.wind_speed_mps ?? current?.wind_speed_mps ?? null;
-          const gustCandidate = normalized.wind_gust_mps ?? current?.wind_gust_mps ?? speed;
-          const gust = Math.max(
-            speed ?? Number.NEGATIVE_INFINITY,
-            gustCandidate ?? Number.NEGATIVE_INFINITY,
-          );
-
-          return {
-            timestamp: typeof normalized.timestamp === "string" ? normalized.timestamp : new Date().toISOString(),
-            wind_speed_mps: speed,
-            wind_gust_mps: Number.isFinite(gust) ? gust : null,
-            wind_direction_deg: normalized.wind_direction_deg ?? current?.wind_direction_deg ?? null,
-          };
-        });
-
-        setConditions((current) => {
-          if (!current) {
-            return current;
-          }
-
-          const windSpeed = normalized.wind_speed_mps ?? current.wind_speed_mps;
-          const windDirection = normalized.wind_direction_deg ?? current.wind_direction_deg;
-          const windGust = Math.max(
-            windSpeed ?? Number.NEGATIVE_INFINITY,
-            normalized.wind_gust_mps ?? current.wind_gust_mps ?? Number.NEGATIVE_INFINITY,
-          );
-
-          return {
-            ...current,
-            wind_speed_mps: windSpeed,
-            wind_speed_mph: windSpeed !== null && windSpeed !== undefined ? windSpeed * 2.23694 : current.wind_speed_mph,
-            wind_gust_mps: Number.isFinite(windGust) ? windGust : null,
-            wind_gust_mph: Number.isFinite(windGust) ? windGust * 2.23694 : current.wind_gust_mph,
-            wind_direction_deg: windDirection,
-            wind_direction_cardinal: getWindCardinal(windDirection),
-            observation_timestamp: typeof normalized.timestamp === "string" ? normalized.timestamp : current.observation_timestamp,
-          };
-        });
-        return;
-      }
-
       if (packetType !== "rapid_wind") {
         void fetchLatest();
       }
     });
 
     return unsubscribe;
-  }, [autoRefresh, fetchLatest, getWindCardinal, isRapidWindLikePacket, normalizeRealtimeObservation]);
+  }, [autoRefresh, fetchLatest]);
 
-  return { observation, conditions, rapidWind, loading, error, refetch: fetchLatest };
+  return { observation, conditions, loading, error, refetch: fetchLatest };
+}
+
+export function useRapidWind() {
+  const [rapidWind, setRapidWind] = useState<RapidWindObservation | null>(null);
+  const lastRapidWindTsMsRef = useRef<number>(0);
+
+  useEffect(() => {
+    const unsubscribe = wsService.onObservation((obs) => {
+      const normalized = normalizeRealtimeObservation(obs as unknown as Record<string, unknown>);
+
+      if (!isRapidWindLikePacket(normalized)) {
+        return;
+      }
+
+      const obsTsMs = typeof normalized.timestamp === "string"
+        ? Date.parse(normalized.timestamp)
+        : Number.NaN;
+
+      if (Number.isFinite(obsTsMs) && obsTsMs < lastRapidWindTsMsRef.current) {
+        return;
+      }
+
+      if (Number.isFinite(obsTsMs)) {
+        lastRapidWindTsMsRef.current = obsTsMs;
+      }
+
+      flushSync(() => {
+        setRapidWind((current) => {
+          const speed = typeof normalized.wind_speed_mps === "number"
+            ? normalized.wind_speed_mps
+            : current?.wind_speed_mps ?? null;
+          const gust = typeof normalized.wind_gust_mps === "number"
+            ? normalized.wind_gust_mps
+            : current?.wind_gust_mps ?? null;
+          const direction = typeof normalized.wind_direction_deg === "number"
+            ? normalized.wind_direction_deg
+            : current?.wind_direction_deg ?? null;
+
+          return {
+            timestamp: typeof normalized.timestamp === "string" ? normalized.timestamp : new Date().toISOString(),
+            wind_speed_mps: speed,
+            wind_gust_mps: gust,
+            wind_direction_deg: direction,
+          };
+        });
+      });
+    });
+
+    return unsubscribe;
+  }, []);
+
+  return rapidWind;
 }
 
 /**
@@ -222,9 +223,37 @@ export function useStationInfo() {
  * Hook for managing historical data and charts
  */
 export function useHistoricalData(metric: string, hours = 24, granularity: "1min" | "5min" | "hourly" | "daily" = "hourly") {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<HistoricalChartPoint[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const normalizeTimeSeries = useCallback((series: TimeSeriesData, metricName: string) => {
+    const dataKeyByMetric: Record<string, string> = {
+      temperature: "temperature",
+      humidity: "humidity",
+      pressure: "pressure",
+      wind: "windSpeed",
+      rainfall: "rainfall",
+      solar: "solarRadiation",
+    };
+
+    const dataKey = dataKeyByMetric[metricName.toLowerCase()] ?? metricName;
+
+    return series.data_points.reduce<HistoricalChartPoint[]>((points, point) => {
+        const timestampMs = Date.parse(point.timestamp);
+
+        if (Number.isNaN(timestampMs)) {
+          return points;
+        }
+
+        points.push({
+          timestamp: Math.floor(timestampMs / 1000),
+          [dataKey]: point.value,
+        });
+
+        return points;
+      }, []);
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -255,13 +284,13 @@ export function useHistoricalData(metric: string, hours = 24, granularity: "1min
           throw new Error(`Unknown metric: ${metric}`);
       }
 
-      setData(result);
+      setData(normalizeTimeSeries(result, metric));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch historical data");
     } finally {
       setLoading(false);
     }
-  }, [metric, hours, granularity]);
+  }, [metric, hours, granularity, normalizeTimeSeries]);
 
   useEffect(() => {
     fetchData();

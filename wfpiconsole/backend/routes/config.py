@@ -2,7 +2,7 @@
 import logging
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -27,6 +27,23 @@ from wfpiconsole.backend.auth import get_auth_manager
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/config", tags=["Configuration"])
+
+
+def _get_optional_admin_user_from_request(request: Request, db: Session) -> Optional[AdminUser]:
+    """Resolve an admin user from Authorization header if present and valid."""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+
+    token = auth_header.split(" ", 1)[1].strip()
+    if not token:
+        return None
+
+    payload = get_auth_manager().verify_token(token)
+    if not payload or "sub" not in payload:
+        return None
+
+    return db.query(AdminUser).filter(AdminUser.username == payload["sub"]).first()
 
 
 # Pydantic models for request/response
@@ -57,6 +74,9 @@ class DisplaySettingsRequest(BaseModel):
     temperature_unit: str = "C"  # or "F"
     wind_speed_unit: str = "m/s"  # or "mph", "kph", "knots"
     pressure_unit: str = "mb"  # or "inHg", "hPa"
+    rainfall_unit: str = "mm"  # or "in"
+    preferred_forecast_source: str = "tempest"  # "tempest" or "sager"
+    preferred_atmos_panel: str = "barometer"  # "lightning" or "barometer"
     current_theme: str = "dark-minimalist"
     panels_per_row: int = 2
     feels_like_threshold_cold_c: float = 10.0
@@ -159,15 +179,64 @@ async def update_station_config(
 
 
 @router.get("/display")
-async def get_display_settings(db: Session = Depends(get_db)):
+async def get_display_settings(
+    request: Request,
+    x_device_key: Optional[str] = Header(default=None),
+    db: Session = Depends(get_db),
+):
     """Get display preferences."""
-    settings = db.query(DisplaySettings).first()
+    current_user = _get_optional_admin_user_from_request(request, db)
+    settings = None
+
+    if current_user:
+        settings = (
+            db.query(DisplaySettings)
+            .filter(
+                DisplaySettings.user_id == current_user.id,
+                DisplaySettings.device_key == x_device_key,
+            )
+            .first()
+        )
+
+        if not settings:
+            settings = (
+                db.query(DisplaySettings)
+                .filter(
+                    DisplaySettings.user_id == current_user.id,
+                    DisplaySettings.device_key.is_(None),
+                )
+                .first()
+            )
+
+    if not settings and x_device_key:
+        settings = (
+            db.query(DisplaySettings)
+            .filter(
+                DisplaySettings.user_id.is_(None),
+                DisplaySettings.device_key == x_device_key,
+            )
+            .first()
+        )
+
+    if not settings:
+        settings = (
+            db.query(DisplaySettings)
+            .filter(
+                DisplaySettings.user_id.is_(None),
+                DisplaySettings.device_key.is_(None),
+            )
+            .first()
+        )
+
     if not settings:
         # Return defaults if not configured
         return {
             "temperature_unit": "C",
             "wind_speed_unit": "m/s",
             "pressure_unit": "mb",
+            "rainfall_unit": "mm",
+            "preferred_forecast_source": "tempest",
+            "preferred_atmos_panel": "barometer",
             "current_theme": "dark-minimalist",
             "panels_per_row": 2,
             "feels_like_threshold_cold_c": 10.0,
@@ -180,6 +249,9 @@ async def get_display_settings(db: Session = Depends(get_db)):
         "temperature_unit": settings.temperature_unit,
         "wind_speed_unit": settings.wind_unit,
         "pressure_unit": settings.pressure_unit,
+        "rainfall_unit": settings.rainfall_unit or "mm",
+        "preferred_forecast_source": settings.preferred_forecast_source or "tempest",
+        "preferred_atmos_panel": settings.preferred_atmos_panel or "barometer",
         "current_theme": settings.current_theme,
         "panels_per_row": settings.primary_panel_count,
         "feels_like_threshold_cold_c": settings.feels_like_cold_threshold,
@@ -196,6 +268,7 @@ async def get_display_settings(db: Session = Depends(get_db)):
 @router.post("/display")
 async def update_display_settings(
     settings: DisplaySettingsRequest,
+    x_device_key: Optional[str] = Header(default=None),
     current_user: AdminUser = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
@@ -207,14 +280,34 @@ async def update_display_settings(
             "hourly": 60,
         }
 
-        display = db.query(DisplaySettings).first()
+        display = (
+            db.query(DisplaySettings)
+            .filter(
+                DisplaySettings.user_id == current_user.id,
+                DisplaySettings.device_key == x_device_key,
+            )
+            .first()
+        )
         if not display:
             display = DisplaySettings()
             db.add(display)
 
+        display.user_id = current_user.id
+        display.device_key = x_device_key
         display.temperature_unit = settings.temperature_unit
         display.wind_unit = settings.wind_speed_unit
         display.pressure_unit = settings.pressure_unit
+        display.rainfall_unit = settings.rainfall_unit
+        display.preferred_forecast_source = (
+            settings.preferred_forecast_source
+            if settings.preferred_forecast_source in {"tempest", "sager"}
+            else "tempest"
+        )
+        display.preferred_atmos_panel = (
+            settings.preferred_atmos_panel
+            if settings.preferred_atmos_panel in {"lightning", "barometer"}
+            else "barometer"
+        )
         display.current_theme = settings.current_theme
         display.primary_panel_count = settings.panels_per_row
         display.feels_like_cold_threshold = settings.feels_like_threshold_cold_c
@@ -246,10 +339,10 @@ async def list_api_keys(
     return {
         "api_keys": [
             {
-                "service": key.service,
-                "is_configured": bool(key.encrypted_value),
+                "service": key.service_name,
+                "is_configured": bool(key.key_encrypted),
                 "is_valid": key.is_valid,
-                "last_verified": key.last_verified_at.isoformat() if key.last_verified_at else None,
+                "last_verified": key.last_verified.isoformat() if key.last_verified else None,
             }
             for key in keys
         ]
@@ -264,18 +357,14 @@ async def configure_api_key(
 ):
     """Configure or update an API key."""
     try:
-        encryption = get_encryption_manager()
-
         # Find or create API key record
-        key_record = db.query(APIKey).filter(APIKey.service == api_key.service).first()
+        key_record = db.query(APIKey).filter(APIKey.service_name == api_key.service).first()
         if not key_record:
-            key_record = APIKey(service=api_key.service)
+            key_record = APIKey(service_name=api_key.service)
             db.add(key_record)
 
         # Encrypt and store the key
-        key_record.encrypted_value = encryption.encrypt_value(api_key.key)
-        if api_key.secret:
-            key_record.encrypted_secret = encryption.encrypt_value(api_key.secret)
+        key_record.set_key(api_key.key)
 
         db.commit()
         logger.info(f"API key configured for {api_key.service} by {current_user.username}")
@@ -303,7 +392,7 @@ async def delete_api_key(
 ):
     """Delete an API key configuration."""
     try:
-        key = db.query(APIKey).filter(APIKey.service == service).first()
+        key = db.query(APIKey).filter(APIKey.service_name == service).first()
         if not key:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

@@ -79,20 +79,31 @@
   gap: 1.5rem;
 }
 
-/* ── NEW 2×2 primary panel grid ── */
+/* ── Primary 3×2 panel grid ── */
 .primary-panels-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
-/* ── Secondary panels (astronomy, etc.) ── */
-.secondary-panels-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+@media (min-width: 1181px) {
+  .dashboard-main {
+    padding: 1rem 1rem 1.25rem;
+  }
+
+  .primary-panels-grid {
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem;
+    height: calc(100vh - 185px);
+    margin-bottom: 1.25rem;
+    align-items: stretch;
+  }
+
+  .primary-panels-grid > * {
+    min-height: 0;
+    height: 100%;
+  }
 }
 
 /* ── Charts section ── */
@@ -122,6 +133,12 @@
 }
 
 /* Responsive design */
+@media (max-width: 1180px) {
+  .primary-panels-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 768px) {
   .dashboard-main {
     padding: 1rem;

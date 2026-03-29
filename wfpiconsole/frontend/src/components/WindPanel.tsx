@@ -3,20 +3,13 @@
  * plus today's average wind and max gust pulled from the wx-summary endpoint.
  */
 
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { useSettings } from "../context/SettingsContext";
-import { useWindSpeedConverter } from "../hooks/useWeather";
+import { useRapidWind, useWindSpeedConverter } from "../hooks/useWeather";
 import { WxSummary } from "../types";
 import "./WindPanel.css";
 
 interface Props {
-  /** Live rapid-wind packet state */
-  rapidWind: {
-    timestamp: string;
-    wind_speed_mps: number | null;
-    wind_gust_mps: number | null;
-    wind_direction_deg: number | null;
-  } | null;
   /** Daily summary (avg wind, max gust) */
   wxSummary: WxSummary | null;
   currentWindMps?: number | null;
@@ -64,7 +57,7 @@ function toCardinal(deg: number | null): string {
 /** Compass rose SVG.  The arrow tip points toward the wind direction (from where
  *  the wind is blowing).  The orange head is the "from" side, grey tail points
  *  away – matching PiConsole convention. */
-function CompassRose({ direction }: { direction: number | null }) {
+const CompassRose = memo(function CompassRose({ direction }: { direction: number | null }) {
   const deg = direction ?? 0;
 
   // Tick marks every 30°; cardinal ticks are longer
@@ -127,15 +120,15 @@ function CompassRose({ direction }: { direction: number | null }) {
       </g>
     </svg>
   );
-}
+});
 
-export default function WindPanel({
-  rapidWind,
+function WindPanel({
   wxSummary,
   currentWindMps = null,
   currentGustMps = null,
   currentWindDirDeg = null,
 }: Props) {
+  const rapidWind = useRapidWind();
   const { settings } = useSettings();
   const convertWind = useWindSpeedConverter(settings?.windSpeedUnit || "m/s");
   const unit = settings?.windSpeedUnit || "m/s";
@@ -222,3 +215,5 @@ export default function WindPanel({
     </div>
   );
 }
+
+export default memo(WindPanel);

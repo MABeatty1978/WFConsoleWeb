@@ -34,13 +34,17 @@ const DEFAULT_STATION_FORM: StationFormState = {
 
 export default function SettingsPage() {
   const { logout, isAdmin } = useAuth();
-  const { settings, setTemperatureUnit, setWindSpeedUnit, setPressureUnit } = useSettings();
+  const { settings, setTemperatureUnit, setWindSpeedUnit, setPressureUnit, setRainfallUnit } = useSettings();
   const { currentTheme, themes, switchTheme } = useThemeContext();
-  const [activeTabs, setActiveTabs] = useState<Set<string>>(new Set(["general"]));
+  const [activeTabs, setActiveTabs] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [stationForm, setStationForm] = useState<StationFormState>(DEFAULT_STATION_FORM);
   const [stationLoading, setStationLoading] = useState(false);
   const [stationSaving, setStationSaving] = useState(false);
+  const [weatherFlowApiKey, setWeatherFlowApiKey] = useState("");
+  const [weatherFlowConfigured, setWeatherFlowConfigured] = useState(false);
+  const [apiKeyLoading, setApiKeyLoading] = useState(false);
+  const [apiKeySaving, setApiKeySaving] = useState(false);
 
   const showMessage = (type: "success" | "error", text: string) => {
     setMessage({ type, text });
@@ -89,7 +93,23 @@ export default function SettingsPage() {
       }
     };
 
+    const loadApiKeyStatus = async () => {
+      try {
+        setApiKeyLoading(true);
+        const response = await apiClient.listApiKeys();
+        const weatherFlowKey = response.api_keys.find((key) =>
+          ["weatherflow", "tempest"].includes(key.service)
+        );
+        setWeatherFlowConfigured(Boolean(weatherFlowKey?.is_configured));
+      } catch {
+        showMessage("error", "Failed to load API key status");
+      } finally {
+        setApiKeyLoading(false);
+      }
+    };
+
     loadStationConfig();
+    loadApiKeyStatus();
 
     return () => {
       isMounted = false;
@@ -106,7 +126,7 @@ export default function SettingsPage() {
     setActiveTabs(newTabs);
   };
 
-  const handleUnitChange = async (unitType: "temp" | "wind" | "pressure", value: string) => {
+  const handleUnitChange = async (unitType: "temp" | "wind" | "pressure" | "rainfall", value: string) => {
     try {
       if (unitType === "temp") {
         await setTemperatureUnit(value as "C" | "F");
@@ -114,6 +134,8 @@ export default function SettingsPage() {
         await setWindSpeedUnit(value as "m/s" | "mph" | "kph" | "knots");
       } else if (unitType === "pressure") {
         await setPressureUnit(value as "mb" | "inHg" | "hPa");
+      } else if (unitType === "rainfall") {
+        await setRainfallUnit(value as "mm" | "in");
       }
       showMessage("success", "Settings updated successfully");
     } catch {
@@ -190,6 +212,44 @@ export default function SettingsPage() {
       await logout();
     } catch {
       showMessage("error", "Logout failed");
+    }
+  };
+
+  const handleWeatherFlowTokenSave = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!weatherFlowApiKey.trim()) {
+      showMessage("error", "Enter a WeatherFlow API token before saving.");
+      return;
+    }
+
+    try {
+      setApiKeySaving(true);
+      await apiClient.configureApiKey({
+        service: "weatherflow",
+        key: weatherFlowApiKey.trim(),
+      });
+      setWeatherFlowConfigured(true);
+      setWeatherFlowApiKey("");
+      showMessage("success", "WeatherFlow API token saved successfully");
+    } catch {
+      showMessage("error", "Failed to save WeatherFlow API token");
+    } finally {
+      setApiKeySaving(false);
+    }
+  };
+
+  const handleWeatherFlowTokenDelete = async () => {
+    try {
+      setApiKeySaving(true);
+      await apiClient.deleteApiKey("weatherflow");
+      setWeatherFlowConfigured(false);
+      setWeatherFlowApiKey("");
+      showMessage("success", "WeatherFlow API token removed");
+    } catch {
+      showMessage("error", "Failed to remove WeatherFlow API token");
+    } finally {
+      setApiKeySaving(false);
     }
   };
 
@@ -278,6 +338,24 @@ export default function SettingsPage() {
                   ))}
                 </div>
               </div>
+
+              <div className="settings-group">
+                <label>Rainfall Unit</label>
+                <div className="radio-group">
+                  {["mm", "in"].map((unit) => (
+                    <label key={unit}>
+                      <input
+                        type="radio"
+                        name="rainfall-unit"
+                        value={unit}
+                        checked={settings?.rainfallUnit === unit}
+                        onChange={(e) => handleUnitChange("rainfall", e.target.value)}
+                      />
+                      {unit === "in" ? "Inches (in)" : "Millimeters (mm)"}
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </section>
@@ -317,6 +395,67 @@ export default function SettingsPage() {
             </div>
           )}
         </section>
+
+        {isAdmin && (
+          <section className="settings-section">
+            <div className="section-header" onClick={() => toggleTab("api-keys")}>
+              <h2>Forecast API</h2>
+              <span className={`toggle ${activeTabs.has("api-keys") ? "open" : ""}`}>
+                ▼
+              </span>
+            </div>
+
+            {activeTabs.has("api-keys") && (
+              <div className="section-content">
+                <p className="section-copy">
+                  Tempest Better Forecast requires a WeatherFlow API token. If no token is configured, the dashboard will fall back to Sager forecast.
+                </p>
+
+                {apiKeyLoading ? (
+                  <div className="admin-note">
+                    <p>Loading API key status...</p>
+                  </div>
+                ) : (
+                  <form className="station-form" onSubmit={handleWeatherFlowTokenSave}>
+                    <div className="form-field">
+                      <label htmlFor="weatherflow_api_key">WeatherFlow API Token</label>
+                      <input
+                        id="weatherflow_api_key"
+                        name="weatherflow_api_key"
+                        type="password"
+                        value={weatherFlowApiKey}
+                        onChange={(event) => setWeatherFlowApiKey(event.target.value)}
+                        placeholder={weatherFlowConfigured ? "Configured. Enter a new token to replace it." : "Paste WeatherFlow API token"}
+                        disabled={apiKeySaving}
+                      />
+                    </div>
+
+                    <div className="admin-note api-key-status-note">
+                      <p>Status: {weatherFlowConfigured ? "Configured" : "Not configured"}</p>
+                      <p>Service name used internally: weatherflow</p>
+                    </div>
+
+                    <div className="form-actions api-key-actions">
+                      {weatherFlowConfigured && (
+                        <button
+                          className="secondary-button"
+                          type="button"
+                          onClick={handleWeatherFlowTokenDelete}
+                          disabled={apiKeySaving}
+                        >
+                          Remove Token
+                        </button>
+                      )}
+                      <button className="save-button" type="submit" disabled={apiKeySaving}>
+                        {apiKeySaving ? "Saving..." : weatherFlowConfigured ? "Replace Token" : "Save Token"}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            )}
+          </section>
+        )}
 
         {isAdmin && (
           <section className="settings-section">
