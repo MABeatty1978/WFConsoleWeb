@@ -88,27 +88,25 @@ async def login(request: Request, db: Session = Depends(get_db)):
             password=str(payload.get("password", "")),
         )
 
-        # Find user by username
-        user = db.query(AdminUser).filter(AdminUser.username == credentials.username).first()
+        # This deployment supports exactly one admin account.
+        admin_users = db.query(AdminUser).all()
+        if len(admin_users) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="No admin user is configured. Run the installer setup first.",
+            )
 
-        # Bootstrap fallback: if there is exactly one admin account, allow that account
-        # to be selected even when the frontend submits a blank username. If a password is
-        # provided, it still must match.
-        if not user:
-            admin_users = db.query(AdminUser).all()
-            if len(admin_users) == 1:
-                candidate = admin_users[0]
-                if not credentials.password:
-                    user = candidate
-                    credentials = LoginRequest(username=candidate.username, password=credentials.password)
-                else:
-                    auth_manager = get_auth_manager()
-                    if auth_manager.verify_password(credentials.password, candidate.password_hash):
-                        user = candidate
-                        credentials = LoginRequest(username=candidate.username, password=credentials.password)
+        if len(admin_users) > 1:
+            logger.error("Multiple admin users detected (%s). Expected exactly one.", len(admin_users))
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Invalid auth configuration: multiple admin users found.",
+            )
 
-        if not user:
-            logger.warning(f"Login attempt with non-existent user: {credentials.username}")
+        user = admin_users[0]
+
+        if credentials.username and credentials.username != user.username:
+            logger.warning(f"Login attempt with unknown admin username: {credentials.username}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid username or password",
@@ -127,7 +125,7 @@ async def login(request: Request, db: Session = Depends(get_db)):
         payload = {"sub": user.username}
         token = auth_manager.create_token(payload)
 
-        logger.info(f"User logged in: {credentials.username}")
+        logger.info(f"User logged in: {user.username}")
         return TokenResponse(access_token=token, token_type="bearer", expires_in=86400)
 
     except HTTPException:

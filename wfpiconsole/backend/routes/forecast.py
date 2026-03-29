@@ -10,7 +10,6 @@ import httpx
 from zoneinfo import ZoneInfo
 from typing import Optional
 
-from wfpiconsole.backend.auth import get_current_user
 from wfpiconsole.backend.dependencies import get_db
 from datetime import datetime, timezone, timedelta
 
@@ -109,7 +108,6 @@ async def _fetch_live_solar_data(latitude: float, longitude: float) -> tuple[Opt
 
 @router.get("/sager")
 async def get_sager_forecast(
-    current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -197,7 +195,6 @@ async def get_sager_forecast(
 
 @router.get("/tempest")
 async def get_tempest_forecast(
-    current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Get WeatherFlow Tempest Better Forecast data for configured station."""
@@ -284,7 +281,6 @@ async def get_tempest_forecast(
 
 @router.get("/astronomical")
 async def get_astronomical_data(
-    current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """

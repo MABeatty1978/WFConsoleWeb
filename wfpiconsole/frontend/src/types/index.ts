@@ -159,6 +159,7 @@ export interface LoginResponse {
 
 export interface AuthUser {
   username: string;
+  role: "admin";
   created_at: string;
 }
 

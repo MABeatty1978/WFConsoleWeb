@@ -163,6 +163,35 @@ class ApiClient {
     );
   }
 
+  async changePassword(currentPassword: string, newPassword: string): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>(
+      "POST",
+      "/config/password",
+      {
+        current_password: currentPassword,
+        new_password: newPassword,
+      }
+    );
+  }
+
+  async changeUsername(currentPassword: string, newUsername: string): Promise<Record<string, unknown>> {
+    const response = await this.request<Record<string, unknown>>(
+      "POST",
+      "/config/username",
+      {
+        current_password: currentPassword,
+        new_username: newUsername,
+      }
+    );
+
+    const accessToken = response.access_token;
+    if (typeof accessToken === "string" && accessToken) {
+      this.setToken(accessToken);
+    }
+
+    return response;
+  }
+
   async getStationConfig(): Promise<StationInfo> {
     return this.request<StationInfo>("GET", "/config/station");
   }
@@ -315,6 +344,14 @@ class ApiClient {
     return this.request<Record<string, unknown>>("GET", "/system/version", undefined, false);
   }
 
+  async checkForUpdates(): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>("GET", "/system/updates/check");
+  }
+
+  async installLatestUpdate(): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>("POST", "/system/updates/install");
+  }
+
   async getServicesStatus(): Promise<Record<string, unknown>> {
     return this.request<Record<string, unknown>>("GET", "/system/services-status");
   }
@@ -325,15 +362,15 @@ class ApiClient {
 
   // Forecast endpoints
   async getSagerForecast(): Promise<any> {
-    return this.request<any>("GET", "/forecast/sager");
+    return this.request<any>("GET", "/forecast/sager", undefined, false);
   }
 
   async getTempestForecast(): Promise<TempestForecastResponse> {
-    return this.request<TempestForecastResponse>("GET", "/forecast/tempest");
+    return this.request<TempestForecastResponse>("GET", "/forecast/tempest", undefined, false);
   }
 
   async getAstronomicalData(): Promise<any> {
-    return this.request<any>("GET", "/forecast/astronomical");
+    return this.request<any>("GET", "/forecast/astronomical", undefined, false);
   }
 }
 

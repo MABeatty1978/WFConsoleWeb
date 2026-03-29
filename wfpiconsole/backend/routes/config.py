@@ -99,6 +99,13 @@ class PasswordChangeRequest(BaseModel):
     new_password: str
 
 
+class UsernameChangeRequest(BaseModel):
+    """Request model for username change."""
+
+    current_password: str
+    new_username: str
+
+
 # Configuration endpoints
 
 
@@ -448,6 +455,69 @@ async def change_password(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to change password",
+        )
+
+
+@router.post("/username")
+async def change_username(
+    username_change: UsernameChangeRequest,
+    current_user: AdminUser = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Change admin username and return a refreshed access token."""
+    try:
+        auth_manager = get_auth_manager()
+
+        if not auth_manager.verify_password(username_change.current_password, current_user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Current password is incorrect",
+            )
+
+        new_username = username_change.new_username.strip()
+        if not new_username:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="New username cannot be empty",
+            )
+
+        if new_username != current_user.username:
+            username_exists = (
+                db.query(AdminUser)
+                .filter(AdminUser.username == new_username, AdminUser.id != current_user.id)
+                .first()
+            )
+            if username_exists:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Username is already in use",
+                )
+
+            old_username = current_user.username
+            current_user.username = new_username
+            db.commit()
+            db.refresh(current_user)
+            logger.info("Username changed from %s to %s", old_username, new_username)
+
+        token = auth_manager.create_token({"sub": current_user.username})
+
+        return {
+            "status": "success",
+            "message": "Username changed successfully",
+            "username": current_user.username,
+            "access_token": token,
+            "token_type": "bearer",
+            "expires_in": 86400,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error changing username: {e}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to change username",
         )
 
 

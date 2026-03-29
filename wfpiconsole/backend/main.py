@@ -42,23 +42,21 @@ async def lifespan(app: FastAPI):
         init_db()
         logger.info("Database initialized successfully")
 
-        # Create bootstrap admin user if no admin users exist
+        # Validate admin bootstrap status. Install/setup should provision admin credentials.
         from wfpiconsole.config.database import SessionLocal
         from wfpiconsole.config.models import AdminUser
         db = SessionLocal()
         try:
             admin_count = db.query(AdminUser).count()
             if admin_count == 0:
-                auth_manager = get_auth_manager()
-                from datetime import datetime, timezone
-                admin_user = AdminUser(
-                    username="admin",
-                    password_hash=auth_manager.hash_password("Tempest123!"),
-                    created_at=datetime.now(timezone.utc),
+                logger.warning(
+                    "No admin account exists. Run installer/setup admin provisioning before login."
                 )
-                db.add(admin_user)
-                db.commit()
-                logger.info("Bootstrap admin account created: admin/Tempest123!")
+            elif admin_count > 1:
+                logger.error(
+                    "Multiple admin accounts detected (%s). Expected exactly one.",
+                    admin_count,
+                )
         finally:
             db.close()
 

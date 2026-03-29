@@ -11,6 +11,8 @@ INSTALL_DIR="${HOME}/.local/opt/wfconsoleweb"
 SERVICE_DIR="/etc/systemd/system"
 LOG_FILE="${INSTALL_DIR}/install.log"
 VENV_DIR="${INSTALL_DIR}/venv"
+DATA_DIR="${INSTALL_DIR}/data"
+INSTALL_DB_URL="sqlite:///${INSTALL_DIR}/wfpiconsole.db"
 
 # Color codes for output
 RED='\033[0;31m'
@@ -56,6 +58,7 @@ fi
 # Create install directory
 log_info "Creating installation directory: ${INSTALL_DIR}"
 mkdir -p "${INSTALL_DIR}" 2>/dev/null || true
+mkdir -p "${DATA_DIR}" 2>/dev/null || true
 
 # Redirect logs
 exec > >(tee -a "${LOG_FILE}")
@@ -108,13 +111,49 @@ pip install -e . 2>&1 | grep -E "Successfully|ERROR" || true
 
 log_ok "WFConsoleWeb installed successfully"
 
+# Configure single admin account
+log_info "Configuring admin account..."
+ADMIN_USERNAME="${WF_ADMIN_USERNAME:-}"
+ADMIN_PASSWORD="${WF_ADMIN_PASSWORD:-}"
+
+if [[ -z "${ADMIN_USERNAME}" ]]; then
+    read -r -p "Admin username [admin]: " ADMIN_USERNAME
+    ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
+fi
+
+if [[ -z "${ADMIN_PASSWORD}" ]]; then
+    read -r -s -p "Admin password: " ADMIN_PASSWORD
+    echo ""
+fi
+
+if [[ -z "${ADMIN_PASSWORD}" ]]; then
+    log_error "Admin password cannot be empty"
+    exit 1
+fi
+
+export DATABASE_URL="${INSTALL_DB_URL}"
+export DATA_DIR="${DATA_DIR}"
+
+python3 "${SCRIPT_DIR}/scripts/setup-admin.py" \
+    --username "${ADMIN_USERNAME}" \
+    --password "${ADMIN_PASSWORD}" \
+    --reset-existing \
+    --non-interactive
+
+unset ADMIN_PASSWORD
+log_ok "Admin account configured: ${ADMIN_USERNAME}"
+
 # Create startup script
 log_info "Creating startup script..."
 STARTUP_SCRIPT="${INSTALL_DIR}/run.sh"
 cat > "${STARTUP_SCRIPT}" << 'EOF'
 #!/bin/bash
 # WFConsoleWeb Startup Script
+INSTALL_DIR="$(dirname "$0")"
 VENV_DIR="$(dirname "$0")/venv"
+export DATABASE_URL="sqlite:///${INSTALL_DIR}/wfpiconsole.db"
+export DATA_DIR="${INSTALL_DIR}/data"
+cd "${INSTALL_DIR}"
 source "${VENV_DIR}/bin/activate"
 exec wfpiconsole-web
 EOF

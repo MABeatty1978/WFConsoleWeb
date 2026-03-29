@@ -3,7 +3,7 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -13,6 +13,8 @@ DEFAULT_DATA_DIR = PROJECT_ROOT / "data"
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables or .env file"""
+
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
 
     # App configuration
     app_name: str = "WFConsoleWeb"
@@ -39,6 +41,11 @@ class Settings(BaseSettings):
     # Ko-fi Configuration
     kofi_profile_url: str = os.getenv("KOFI_PROFILE_URL", "https://ko-fi.com/michaelbeatty9142002")
 
+    # GitHub update source
+    github_repo_owner: str = os.getenv("GITHUB_REPO_OWNER", "michaelbeatty9142002")
+    github_repo_name: str = os.getenv("GITHUB_REPO_NAME", "WFConsoleWeb")
+    github_api_token: str = os.getenv("GITHUB_API_TOKEN", "")
+
     # Data Storage
     data_directory: Path = Path(os.getenv("DATA_DIR", str(DEFAULT_DATA_DIR)))
     max_historical_days: int = int(os.getenv("MAX_HISTORICAL_DAYS", "365"))
@@ -57,10 +64,6 @@ class Settings(BaseSettings):
         "http://localhost:8000",
         "http://127.0.0.1",
     ]
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

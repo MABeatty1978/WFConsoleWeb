@@ -3,6 +3,7 @@ import logging
 import asyncio
 from datetime import datetime
 from typing import Optional
+from sqlalchemy import text
 
 from wfpiconsole.service.udp_listener import get_udp_service
 from wfpiconsole.config.settings import get_settings
@@ -104,7 +105,7 @@ class ServiceManager:
                 if self.is_running:
                     try:
                         db = SessionLocal()
-                        db.execute("SELECT 1")
+                        db.execute(text("SELECT 1"))
                         db.close()
                         logger.debug("Health check passed")
                     except Exception as e:

@@ -1,6 +1,7 @@
 """External API clients for WeatherFlow, CheckWX, and GitHub"""
 import asyncio
 import logging
+import re
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 
@@ -240,6 +241,9 @@ class GitHubAPI:
             response.raise_for_status()
             return response.json()
 
+        except httpx.HTTPStatusError as e:
+            logger.error("Failed to fetch latest release (%s): %s", e.response.status_code, e)
+            return None
         except httpx.RequestError as e:
             logger.error(f"Failed to fetch latest release: {e}")
             return None
@@ -247,8 +251,8 @@ class GitHubAPI:
     async def compare_versions(
         self,
         current_version: str,
-        owner: str = "yourusername",
-        repo: str = "WFConsoleWeb",
+        owner: str,
+        repo: str,
     ) -> Dict[str, Any]:
         """
         Check if a newer version is available.
@@ -293,18 +297,27 @@ class GitHubAPI:
         Returns:
             -1 if v1 < v2, 0 if equal, 1 if v1 > v2
         """
-        parts1 = [int(x) for x in v1.split(".")]
-        parts2 = [int(x) for x in v2.split(".")]
+        def normalize(version_value: str) -> tuple:
+            raw = version_value.strip().lstrip("v")
+            match = re.match(r"^(\d+)\.(\d+)\.(\d+)(.*)$", raw)
+            if not match:
+                return (0, 0, 0, 1, raw)
 
-        for p1, p2 in zip(parts1, parts2):
-            if p1 < p2:
-                return -1
-            elif p1 > p2:
-                return 1
+            major = int(match.group(1))
+            minor = int(match.group(2))
+            patch = int(match.group(3))
+            suffix = (match.group(4) or "").strip().lower()
 
-        if len(parts1) < len(parts2):
+            # Final release should sort after prerelease for same base version.
+            if not suffix:
+                return (major, minor, patch, 1, "")
+            return (major, minor, patch, 0, suffix)
+
+        pv1 = normalize(v1)
+        pv2 = normalize(v2)
+
+        if pv1 < pv2:
             return -1
-        elif len(parts1) > len(parts2):
+        if pv1 > pv2:
             return 1
-
         return 0

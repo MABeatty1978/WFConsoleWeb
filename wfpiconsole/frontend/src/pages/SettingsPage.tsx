@@ -33,7 +33,7 @@ const DEFAULT_STATION_FORM: StationFormState = {
 };
 
 export default function SettingsPage() {
-  const { logout, isAdmin } = useAuth();
+  const { logout, isAdmin, refreshAuth, username } = useAuth();
   const { settings, setTemperatureUnit, setWindSpeedUnit, setPressureUnit, setRainfallUnit } = useSettings();
   const { currentTheme, themes, switchTheme } = useThemeContext();
   const [activeTabs, setActiveTabs] = useState<Set<string>>(new Set());
@@ -45,6 +45,16 @@ export default function SettingsPage() {
   const [weatherFlowConfigured, setWeatherFlowConfigured] = useState(false);
   const [apiKeyLoading, setApiKeyLoading] = useState(false);
   const [apiKeySaving, setApiKeySaving] = useState(false);
+  const [usernameCurrentPassword, setUsernameCurrentPassword] = useState("");
+  const [newUsername, setNewUsername] = useState("");
+  const [usernameSaving, setUsernameSaving] = useState(false);
+  const [passwordCurrent, setPasswordCurrent] = useState("");
+  const [passwordNew, setPasswordNew] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<Record<string, unknown> | null>(null);
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [installingUpdate, setInstallingUpdate] = useState(false);
 
   const showMessage = (type: "success" | "error", text: string) => {
     setMessage({ type, text });
@@ -250,6 +260,95 @@ export default function SettingsPage() {
       showMessage("error", "Failed to remove WeatherFlow API token");
     } finally {
       setApiKeySaving(false);
+    }
+  };
+
+  const handleUsernameChange = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    const targetUsername = newUsername.trim();
+    if (!targetUsername) {
+      showMessage("error", "Enter a new username.");
+      return;
+    }
+    if (!usernameCurrentPassword) {
+      showMessage("error", "Enter current password to confirm username change.");
+      return;
+    }
+
+    try {
+      setUsernameSaving(true);
+      await apiClient.changeUsername(usernameCurrentPassword, targetUsername);
+      await refreshAuth();
+      setUsernameCurrentPassword("");
+      setNewUsername("");
+      showMessage("success", "Username updated successfully.");
+    } catch {
+      showMessage("error", "Failed to update username.");
+    } finally {
+      setUsernameSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!passwordCurrent || !passwordNew) {
+      showMessage("error", "Enter current and new password.");
+      return;
+    }
+
+    if (passwordNew !== passwordConfirm) {
+      showMessage("error", "New password and confirmation do not match.");
+      return;
+    }
+
+    try {
+      setPasswordSaving(true);
+      await apiClient.changePassword(passwordCurrent, passwordNew);
+      setPasswordCurrent("");
+      setPasswordNew("");
+      setPasswordConfirm("");
+      showMessage("success", "Password updated successfully.");
+    } catch {
+      showMessage("error", "Failed to update password.");
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
+  const handleCheckUpdates = async () => {
+    try {
+      setCheckingUpdates(true);
+      const response = await apiClient.checkForUpdates();
+      setUpdateInfo(response);
+      const available = Boolean(response.update_available);
+      showMessage(
+        "success",
+        available
+          ? `Update available: ${String(response.latest_version || "new release")}`
+          : "You are already on the latest version."
+      );
+    } catch {
+      showMessage("error", "Failed to check for updates.");
+    } finally {
+      setCheckingUpdates(false);
+    }
+  };
+
+  const handleInstallUpdate = async () => {
+    try {
+      setInstallingUpdate(true);
+      const response = await apiClient.installLatestUpdate();
+      setUpdateInfo((current) => ({ ...current, ...response }));
+      showMessage(
+        "success",
+        "Update scheduled. The service will restart automatically after install."
+      );
+    } catch {
+      showMessage("error", "Failed to schedule update install.");
+    } finally {
+      setInstallingUpdate(false);
     }
   };
 
@@ -605,6 +704,64 @@ export default function SettingsPage() {
           </section>
         )}
 
+        {isAdmin && (
+          <section className="settings-section">
+            <div className="section-header" onClick={() => toggleTab("updates")}>
+              <h2>Application Updates</h2>
+              <span className={`toggle ${activeTabs.has("updates") ? "open" : ""}`}>
+                ▼
+              </span>
+            </div>
+
+            {activeTabs.has("updates") && (
+              <div className="section-content">
+                <p className="section-copy">
+                  Check GitHub Releases for newer versions and schedule an in-place upgrade.
+                  A database backup is created before update install.
+                </p>
+
+                <div className="form-actions">
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={handleCheckUpdates}
+                    disabled={checkingUpdates || installingUpdate}
+                  >
+                    {checkingUpdates ? "Checking..." : "Check for Updates"}
+                  </button>
+                  <button
+                    className="save-button"
+                    type="button"
+                    onClick={handleInstallUpdate}
+                    disabled={
+                      installingUpdate ||
+                      !updateInfo ||
+                      !Boolean(updateInfo.update_available)
+                    }
+                  >
+                    {installingUpdate ? "Scheduling..." : "Install Latest Update"}
+                  </button>
+                </div>
+
+                {updateInfo && (
+                  <div className="admin-note">
+                    <p>Current Version: {String(updateInfo.current_version ?? "unknown")}</p>
+                    <p>Latest Version: {String(updateInfo.latest_version ?? "unknown")}</p>
+                    <p>
+                      Update Available: {Boolean(updateInfo.update_available) ? "Yes" : "No"}
+                    </p>
+                    {Boolean(updateInfo.release_url) && (
+                      <p>
+                        Release: <a href={String(updateInfo.release_url)} target="_blank" rel="noopener noreferrer">View on GitHub</a>
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        )}
+
         <section className="settings-section">
           <div className="section-header" onClick={() => toggleTab("about")}>
             <h2>About & Support</h2>
@@ -642,9 +799,87 @@ export default function SettingsPage() {
 
           {activeTabs.has("logout") && (
             <div className="section-content">
+              <p className="section-copy">
+                Logged in as <strong>{username || "admin"}</strong>.
+              </p>
+
+              <form className="station-form" onSubmit={handleUsernameChange}>
+                <h3>Change Username</h3>
+                <div className="form-grid">
+                  <div className="form-field">
+                    <label htmlFor="new_username">New Username</label>
+                    <input
+                      id="new_username"
+                      type="text"
+                      value={newUsername}
+                      onChange={(event) => setNewUsername(event.target.value)}
+                      disabled={usernameSaving}
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label htmlFor="username_current_password">Current Password</label>
+                    <input
+                      id="username_current_password"
+                      type="password"
+                      value={usernameCurrentPassword}
+                      onChange={(event) => setUsernameCurrentPassword(event.target.value)}
+                      disabled={usernameSaving}
+                    />
+                  </div>
+                </div>
+                <div className="form-actions">
+                  <button className="save-button" type="submit" disabled={usernameSaving}>
+                    {usernameSaving ? "Saving..." : "Update Username"}
+                  </button>
+                </div>
+              </form>
+
+              <form className="station-form" onSubmit={handlePasswordChange}>
+                <h3>Change Password</h3>
+                <div className="form-grid">
+                  <div className="form-field">
+                    <label htmlFor="password_current">Current Password</label>
+                    <input
+                      id="password_current"
+                      type="password"
+                      value={passwordCurrent}
+                      onChange={(event) => setPasswordCurrent(event.target.value)}
+                      disabled={passwordSaving}
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label htmlFor="password_new">New Password</label>
+                    <input
+                      id="password_new"
+                      type="password"
+                      value={passwordNew}
+                      onChange={(event) => setPasswordNew(event.target.value)}
+                      disabled={passwordSaving}
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label htmlFor="password_confirm">Confirm New Password</label>
+                    <input
+                      id="password_confirm"
+                      type="password"
+                      value={passwordConfirm}
+                      onChange={(event) => setPasswordConfirm(event.target.value)}
+                      disabled={passwordSaving}
+                    />
+                  </div>
+                </div>
+                <div className="form-actions">
+                  <button className="save-button" type="submit" disabled={passwordSaving}>
+                    {passwordSaving ? "Saving..." : "Update Password"}
+                  </button>
+                </div>
+              </form>
+
+              <div className="form-actions">
               <button className="logout-button" onClick={handleLogout}>
                 Logout
               </button>
+              </div>
             </div>
           )}
         </section>

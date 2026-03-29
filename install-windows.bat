@@ -7,6 +7,8 @@ REM This script installs WFConsoleWeb on Windows systems
 setlocal enabledelayedexpansion
 set "SCRIPT_DIR=%~dp0"
 set "INSTALL_DIR=%LocalAppData%\WFConsoleWeb"
+set "INSTALL_DATA_DIR=%INSTALL_DIR%\data"
+set "INSTALL_DB_URL=sqlite:///%INSTALL_DIR:\=/%/wfpiconsole.db"
 set "LOG_FILE=%INSTALL_DIR%\install.log"
 
 echo.
@@ -19,6 +21,10 @@ REM Create install directory
 if not exist "%INSTALL_DIR%" (
     echo [*] Creating installation directory: %INSTALL_DIR%
     mkdir "%INSTALL_DIR%" 2>nul
+)
+
+if not exist "%INSTALL_DATA_DIR%" (
+    mkdir "%INSTALL_DATA_DIR%" 2>nul
 )
 
 REM Check Python version
@@ -82,6 +88,41 @@ if %errorlevel% neq 0 (
 )
 echo [OK] WFConsoleWeb installed successfully
 
+REM Configure single admin account
+echo.
+echo [*] Configuring admin account...
+setlocal DisableDelayedExpansion
+set "ADMIN_USERNAME=%WF_ADMIN_USERNAME%"
+set "ADMIN_PASSWORD=%WF_ADMIN_PASSWORD%"
+
+if "%ADMIN_USERNAME%"=="" (
+    for /f "delims=" %%i in ('powershell -NoProfile -Command "$u=Read-Host 'Admin username [admin]'; if([string]::IsNullOrWhiteSpace($u)){$u='admin'}; Write-Output $u"') do set "ADMIN_USERNAME=%%i"
+)
+
+if "%ADMIN_PASSWORD%"=="" (
+    for /f "delims=" %%i in ('powershell -NoProfile -Command "$p=Read-Host 'Admin password' -AsSecureString; $b=[Runtime.InteropServices.Marshal]::SecureStringToBSTR($p); try {[Runtime.InteropServices.Marshal]::PtrToStringBSTR($b)} finally {[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($b)}"') do set "ADMIN_PASSWORD=%%i"
+)
+
+if "%ADMIN_PASSWORD%"=="" (
+    echo [ERROR] Admin password cannot be empty
+    exit /b 1
+)
+
+set "DATABASE_URL=%INSTALL_DB_URL%"
+set "DATA_DIR=%INSTALL_DATA_DIR%"
+python "%SCRIPT_DIR%scripts\setup-admin.py" --username "%ADMIN_USERNAME%" --password "%ADMIN_PASSWORD%" --reset-existing --non-interactive 2>&1 >> "%LOG_FILE%"
+set "SETUP_EXIT=%errorlevel%"
+set "ADMIN_USERNAME_RESULT=%ADMIN_USERNAME%"
+endlocal & set "SETUP_EXIT=%SETUP_EXIT%" & set "ADMIN_USERNAME=%ADMIN_USERNAME_RESULT%"
+
+if %SETUP_EXIT% neq 0 (
+    echo [ERROR] Failed to configure admin account
+    echo See %LOG_FILE% for details
+    exit /b 1
+)
+set "ADMIN_PASSWORD="
+echo [OK] Admin account configured: %ADMIN_USERNAME%
+
 REM Create startup script
 echo.
 echo [*] Creating startup script...
@@ -90,6 +131,9 @@ set "STARTUP_SCRIPT=%INSTALL_DIR%\run.bat"
     echo @echo off
     echo REM WFConsoleWeb Startup Script
     echo title WFConsoleWeb Web Interface
+    echo cd /d "%INSTALL_DIR%"
+    echo set "DATABASE_URL=%INSTALL_DB_URL%"
+    echo set "DATA_DIR=%INSTALL_DATA_DIR%"
     echo call "%INSTALL_DIR%\venv\Scripts\activate.bat"
     echo wfpiconsole-web
     echo pause
@@ -99,16 +143,7 @@ echo [OK] Startup script created at !STARTUP_SCRIPT!
 REM Create shortcut to startup script (requires PowerShell)
 echo.
 echo [*] Creating desktop shortcut...
-powershell -Command "^
-    $DesktopPath = [Environment]::GetFolderPath('Desktop'); ^
-    $ShortcutPath = Join-Path $DesktopPath 'WFConsoleWeb.lnk'; ^
-    $Shell = New-Object -ComObject WScript.Shell; ^
-    $Shortcut = $Shell.CreateShortcut($ShortcutPath); ^
-    $Shortcut.TargetPath = '%STARTUP_SCRIPT%'; ^
-    $Shortcut.WorkingDirectory = '%INSTALL_DIR%'; ^
-    $Shortcut.Save(); ^
-    Write-Host '[OK] Desktop shortcut created'
-" 2>nul
+powershell -NoProfile -Command "$DesktopPath = [Environment]::GetFolderPath('Desktop'); $ShortcutPath = Join-Path $DesktopPath 'WFConsoleWeb.lnk'; $Shell = New-Object -ComObject WScript.Shell; $Shortcut = $Shell.CreateShortcut($ShortcutPath); $Shortcut.TargetPath = '%STARTUP_SCRIPT%'; $Shortcut.WorkingDirectory = '%INSTALL_DIR%'; $Shortcut.Save(); Write-Host '[OK] Desktop shortcut created'" 2>nul
 
 REM Create Windows Service (requires admin, optional)
 echo.

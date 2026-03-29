@@ -1,16 +1,23 @@
 """System and diagnostic endpoints"""
 import logging
+import os
 import platform
+import subprocess
+from pathlib import Path
 from datetime import datetime, timedelta
 from typing import List, Optional
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
+from wfpiconsole import __version__
+from wfpiconsole.config.settings import get_settings
 from wfpiconsole.config.models import AdminUser
 from wfpiconsole.backend.dependencies import get_db, get_admin_user
+from wfpiconsole.core.api_clients import GitHubAPI
 
 
 logger = logging.getLogger(__name__)
@@ -58,6 +65,20 @@ class DiagnosticsResponse(BaseModel):
     recent_errors: int
 
 
+class UpdateCheckResponse(BaseModel):
+    """Application update check response."""
+
+    current_version: str
+    latest_version: str
+    update_available: bool
+    release_url: Optional[str] = None
+    release_name: Optional[str] = None
+    published_at: Optional[str] = None
+    wheel_asset_name: Optional[str] = None
+    wheel_asset_url: Optional[str] = None
+    error: Optional[str] = None
+
+
 # System endpoints
 
 
@@ -68,7 +89,7 @@ async def system_info():
         "platform": platform.system(),
         "platform_version": platform.version(),
         "python_version": platform.python_version(),
-        "app_version": "0.1.0a1",
+        "app_version": __version__,
         "uptime_seconds": datetime.utcnow().timestamp(),
     }
 
@@ -103,10 +124,18 @@ async def get_diagnostics(db: Session = Depends(get_db)):
         cpu_percent = psutil.cpu_percent(interval=0.1)
         memory = psutil.virtual_memory()
 
-        # Get database size
-        database_path = "wfpiconsole.db"  # Default SQLite path
+        # Get database size for local sqlite deployments.
+        settings = get_settings()
+        database_path = None
+        if settings.database_url.startswith("sqlite"):
+            sqlite_url = settings.database_url.replace("sqlite:///", "", 1)
+            parsed = urlparse(settings.database_url)
+            if parsed.scheme == "sqlite" and parsed.path:
+                sqlite_url = parsed.path.lstrip("/") if parsed.netloc else parsed.path
+            database_path = sqlite_url
+
         db_size_mb = 0
-        if os.path.exists(database_path):
+        if database_path and os.path.exists(database_path):
             db_size_mb = os.path.getsize(database_path) / (1024 * 1024)
 
         # Count recent errors (from last hour in logs)
@@ -210,11 +239,202 @@ async def get_version():
     """Get application and API version information."""
     return {
         "app_name": "WFConsoleWeb",
-        "app_version": "0.1.0a1",
+        "app_version": __version__,
         "api_version": "1.0.0",
         "release_date": "2024-01-01",
         "python_version": platform.python_version(),
         "environment": "development",
+    }
+
+
+async def _get_latest_release_details() -> dict:
+    settings = get_settings()
+    github = GitHubAPI(settings.github_api_token or None)
+    try:
+        release = await github.get_latest_release(settings.github_repo_owner, settings.github_repo_name)
+    finally:
+        await github.close()
+
+    if not release:
+        return {
+            "latest_version": __version__,
+            "update_available": False,
+            "release": None,
+            "wheel_asset": None,
+            "error": "Unable to fetch latest release from GitHub",
+        }
+
+    latest_version = str(release.get("tag_name", "")).strip().lstrip("v")
+    if not latest_version:
+        return {
+            "latest_version": __version__,
+            "update_available": False,
+            "release": release,
+            "wheel_asset": None,
+            "error": "Latest release does not contain a valid tag name",
+        }
+
+    wheel_asset = None
+    assets = release.get("assets") or []
+    for asset in assets:
+        asset_name = str(asset.get("name", ""))
+        if asset_name.endswith(".whl"):
+            wheel_asset = asset
+            break
+
+    return {
+        "latest_version": latest_version,
+        "update_available": GitHubAPI._compare_versions(__version__, latest_version) < 0,
+        "release": release,
+        "wheel_asset": wheel_asset,
+        "error": None,
+    }
+
+
+@router.get("/updates/check", response_model=UpdateCheckResponse)
+async def check_updates():
+    """Check GitHub Releases for a newer application version."""
+    details = await _get_latest_release_details()
+    release = details["release"]
+    wheel_asset = details["wheel_asset"]
+
+    if not release:
+        return {
+            "current_version": __version__,
+            "latest_version": details["latest_version"],
+            "update_available": False,
+            "error": details.get("error"),
+        }
+
+    return {
+        "current_version": __version__,
+        "latest_version": details["latest_version"],
+        "update_available": details["update_available"],
+        "release_url": release.get("html_url"),
+        "release_name": release.get("name") or release.get("tag_name"),
+        "published_at": release.get("published_at"),
+        "wheel_asset_name": wheel_asset.get("name") if wheel_asset else None,
+        "wheel_asset_url": wheel_asset.get("browser_download_url") if wheel_asset else None,
+        "error": details.get("error"),
+    }
+
+
+@router.post("/updates/install")
+async def install_update(current_user: AdminUser = Depends(get_admin_user)):
+    """
+    Schedule installation of latest GitHub release wheel.
+
+    This endpoint launches an external updater script that handles:
+    1) DB backup
+    2) package upgrade
+    3) automatic backend restart
+    """
+    details = await _get_latest_release_details()
+    if not details.get("release"):
+        return {
+            "status": "error",
+            "message": details.get("error") or "Unable to fetch latest release",
+            "current_version": __version__,
+            "latest_version": details.get("latest_version", __version__),
+        }
+
+    if not details["update_available"]:
+        return {
+            "status": "noop",
+            "message": "Already on latest version",
+            "current_version": __version__,
+            "latest_version": details["latest_version"],
+        }
+
+    wheel_asset = details["wheel_asset"]
+    if not wheel_asset:
+        return {
+            "status": "error",
+            "message": "Latest release has no wheel asset available for auto-update",
+            "current_version": __version__,
+            "latest_version": details["latest_version"],
+        }
+
+    asset_url = wheel_asset.get("browser_download_url")
+    if not asset_url:
+        return {
+            "status": "error",
+            "message": "Latest release wheel is missing a download URL",
+            "current_version": __version__,
+            "latest_version": details["latest_version"],
+        }
+
+    repo_root = Path(__file__).resolve().parents[3]
+
+    if os.name == "nt":
+        updater_script = repo_root / "scripts" / "update-windows.ps1"
+        if not updater_script.exists():
+            return {
+                "status": "error",
+                "message": "Windows updater script not found",
+            }
+
+        cmd = [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(updater_script),
+            "-AssetUrl",
+            str(asset_url),
+            "-ExpectedVersion",
+            str(details["latest_version"]),
+        ]
+        creation_flags = 0
+        if hasattr(subprocess, "DETACHED_PROCESS"):
+            creation_flags |= subprocess.DETACHED_PROCESS
+        if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
+            creation_flags |= subprocess.CREATE_NEW_PROCESS_GROUP
+
+        subprocess.Popen(
+            cmd,
+            cwd=str(repo_root),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=creation_flags,
+        )
+    else:
+        updater_script = repo_root / "scripts" / "update-linux.sh"
+        if not updater_script.exists():
+            return {
+                "status": "error",
+                "message": "Linux updater script not found",
+            }
+
+        cmd = [
+            "bash",
+            str(updater_script),
+            "--asset-url",
+            str(asset_url),
+            "--expected-version",
+            str(details["latest_version"]),
+        ]
+        subprocess.Popen(
+            cmd,
+            cwd=str(repo_root),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+
+    logger.warning(
+        "Update scheduled by %s: %s -> %s",
+        current_user.username,
+        __version__,
+        details["latest_version"],
+    )
+
+    return {
+        "status": "scheduled",
+        "message": "Update installation scheduled. Service will restart automatically.",
+        "current_version": __version__,
+        "target_version": details["latest_version"],
     }
 
 

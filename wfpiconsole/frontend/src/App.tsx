@@ -44,11 +44,9 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
  * Layout component
  */
 function Layout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
-
   return (
     <div className="app-layout">
-      {isAuthenticated && <Navigation />}
+      <Navigation />
       <main className="app-content">{children}</main>
     </div>
   );
@@ -66,22 +64,18 @@ function AppContent() {
         <Route
           path="/"
           element={
-            <ProtectedRoute>
-              <Layout>
-                <Dashboard />
-              </Layout>
-            </ProtectedRoute>
+            <Layout>
+              <Dashboard />
+            </Layout>
           }
         />
         
         <Route
           path="/analytics"
           element={
-            <ProtectedRoute>
-              <Layout>
-                <AnalyticsPage />
-              </Layout>
-            </ProtectedRoute>
+            <Layout>
+              <AnalyticsPage />
+            </Layout>
           }
         />
         

@@ -10,7 +10,6 @@ import RainfallPanel from "../components/RainfallPanel";
 import SagerForecastPanel from "../components/SagerForecastPanel";
 import AstronomicalPanel from "../components/AstronomicalPanel";
 import LightningBarometerPanel from "../components/LightningBarometerPanel";
-import HistoryChartsPanel from "../components/HistoryChartsPanel";
 import AlertsPanel from "../components/AlertsPanel";
 import "./Dashboard.css";
 
@@ -54,18 +53,6 @@ export default function Dashboard() {
                 conditions={conditions}
                 observation={observation}
               />
-            </section>
-
-            {/* ── History charts ── */}
-            <section className="charts-section">
-              <div className="charts-grid">
-                <HistoryChartsPanel metric="temperature" title="Temperature Trend" />
-                <HistoryChartsPanel metric="humidity"    title="Humidity Trend" />
-              </div>
-              <div className="charts-grid">
-                <HistoryChartsPanel metric="pressure" title="Pressure Trend" />
-                <HistoryChartsPanel metric="wind"     title="Wind Speed Trend" />
-              </div>
             </section>
 
             <section className="alerts-section">
