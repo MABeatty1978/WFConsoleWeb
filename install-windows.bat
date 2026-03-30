@@ -88,6 +88,44 @@ if %errorlevel% neq 0 (
 )
 echo [OK] WFConsoleWeb installed successfully
 
+REM Build React frontend
+echo.
+echo [*] Checking Node.js installation...
+node --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo.
+    echo [ERROR] Node.js is not installed or not in PATH
+    echo Please install Node.js 18+ from https://nodejs.org
+    echo Then re-run this installer.
+    echo.
+    pause
+    exit /b 1
+)
+for /f "tokens=*" %%i in ('node --version 2^>^&1') do set "NODE_VERSION=%%i"
+echo [OK] Found Node.js !NODE_VERSION!
+
+echo.
+echo [*] Installing frontend dependencies...
+cd /d "%SCRIPT_DIR%wfpiconsole\frontend"
+call npm install 2>&1 >> "%LOG_FILE%"
+if %errorlevel% neq 0 (
+    echo [ERROR] Failed to install frontend dependencies
+    echo See %LOG_FILE% for details
+    exit /b 1
+)
+echo [OK] Frontend dependencies installed
+
+echo.
+echo [*] Building React frontend...
+call npm run build 2>&1 >> "%LOG_FILE%"
+if %errorlevel% neq 0 (
+    echo [ERROR] Failed to build frontend
+    echo See %LOG_FILE% for details
+    exit /b 1
+)
+echo [OK] Frontend built successfully
+cd /d "%SCRIPT_DIR%"
+
 REM Configure single admin account
 echo.
 echo [*] Configuring admin account...

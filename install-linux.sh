@@ -111,6 +111,29 @@ pip install -e . 2>&1 | grep -E "Successfully|ERROR" || true
 
 log_ok "WFConsoleWeb installed successfully"
 
+# Build React frontend
+log_info "Checking Node.js installation..."
+if ! command -v node &> /dev/null; then
+    log_error "Node.js is not installed"
+    log_info "Install Node.js 18+ using one of:"
+    log_info "  Ubuntu/Debian: sudo apt-get install nodejs npm"
+    log_info "  Or via nvm:    curl -fsSL https://fnm.vercel.app/install | bash"
+    exit 1
+fi
+
+NODE_VERSION=$(node --version 2>&1)
+log_ok "Found Node.js ${NODE_VERSION}"
+
+log_info "Installing frontend dependencies..."
+cd "${SCRIPT_DIR}/wfpiconsole/frontend"
+npm install 2>&1 | tail -n 3
+log_ok "Frontend dependencies installed"
+
+log_info "Building React frontend..."
+npm run build 2>&1 | tail -n 5
+log_ok "Frontend built successfully"
+cd "${SCRIPT_DIR}"
+
 # Configure single admin account
 log_info "Configuring admin account..."
 ADMIN_USERNAME="${WF_ADMIN_USERNAME:-}"
