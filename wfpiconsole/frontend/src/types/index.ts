@@ -185,6 +185,11 @@ export interface WxSummary {
     rain_rate_mm_per_hour: number | null;
     temp_diff_24h_c: number | null;
     temp_trend_c: number | null;
+    lightning_strikes_3h?: number | null;
+    lightning_strikes_today?: number | null;
+    lightning_strikes_month?: number | null;
+    lightning_strikes_year?: number | null;
+    lightning_frequency_10min?: number | null;
   };
 }
 

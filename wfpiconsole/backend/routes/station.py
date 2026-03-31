@@ -440,6 +440,60 @@ async def get_wx_summary(db: Session = Depends(get_db)):
     from datetime import datetime, timedelta
     from wfpiconsole.core.calculations import calculate_dew_point
 
+    def _calc_period_rain_mm(observations: List[ObservationHistory]) -> float:
+        """Prefer device daily accumulation when present; otherwise sum minute rain."""
+        daily_values = [o.rainfall_daily for o in observations if o.rainfall_daily is not None]
+        if daily_values:
+            daily_peak = max(daily_values)
+            if daily_peak > 0:
+                return float(daily_peak)
+        return float(sum(o.rainfall_rate or 0.0 for o in observations))
+
+    def _calc_grouped_rain_mm(observations: List[ObservationHistory]) -> float:
+        """Aggregate rain by day using daily peaks with minute-rain fallback."""
+        by_day: dict = {}
+        for obs in observations:
+            if not obs.timestamp:
+                continue
+            day = obs.timestamp.date()
+            bucket = by_day.setdefault(day, {"daily_peak": None, "rate_sum": 0.0})
+            if obs.rainfall_daily is not None:
+                if bucket["daily_peak"] is None:
+                    bucket["daily_peak"] = obs.rainfall_daily
+                else:
+                    bucket["daily_peak"] = max(bucket["daily_peak"], obs.rainfall_daily)
+            if obs.rainfall_rate is not None:
+                bucket["rate_sum"] += obs.rainfall_rate
+
+        return float(
+            sum(
+                (bucket["daily_peak"] if bucket["daily_peak"] not in (None, 0) else bucket["rate_sum"])
+                for bucket in by_day.values()
+            )
+        )
+
+    def _count_lightning_events(start: datetime, end: datetime) -> int:
+        """Count probable strike-event rows emitted from evt_strike packets."""
+        return (
+            db.query(ObservationHistory)
+            .filter(
+                ObservationHistory.timestamp >= start,
+                ObservationHistory.timestamp < end,
+                ObservationHistory.lightning_avg_distance.isnot(None),
+                ObservationHistory.lightning_strike_count.is_(None),
+                ObservationHistory.air_temperature.is_(None),
+                ObservationHistory.relative_humidity.is_(None),
+                ObservationHistory.sea_level_pressure.is_(None),
+                ObservationHistory.wind_speed.is_(None),
+                ObservationHistory.wind_gust.is_(None),
+                ObservationHistory.solar_radiation.is_(None),
+                ObservationHistory.uv_index.is_(None),
+                ObservationHistory.rainfall_rate.is_(None),
+                ObservationHistory.rainfall_daily.is_(None),
+            )
+            .count()
+        )
+
     now = datetime.utcnow()
     today_start = datetime(now.year, now.month, now.day)
     yesterday_start = today_start - timedelta(days=1)
@@ -502,13 +556,11 @@ async def get_wx_summary(db: Session = Depends(get_db)):
         )
     )
 
-    # Today's rainfall - use max rainfall_daily (device-reported daily accumulation)
-    rain_today_vals = [o.rainfall_daily for o in today_obs if o.rainfall_daily is not None]
-    rain_today = max(rain_today_vals) if rain_today_vals else 0.0
+    # Today's rainfall
+    rain_today = _calc_period_rain_mm(today_obs)
 
     # Yesterday's rainfall
-    rain_yesterday_vals = [o.rainfall_daily for o in yesterday_obs if o.rainfall_daily is not None]
-    rain_yesterday = max(rain_yesterday_vals) if rain_yesterday_vals else 0.0
+    rain_yesterday = _calc_period_rain_mm(yesterday_obs)
 
     # Monthly rainfall - sum the peak rain_daily per distinct UTC day
     month_obs = (
@@ -516,12 +568,7 @@ async def get_wx_summary(db: Session = Depends(get_db)):
         .filter(ObservationHistory.timestamp >= month_start)
         .all()
     )
-    rain_by_day: dict = {}
-    for o in month_obs:
-        if o.rainfall_daily is not None and o.timestamp:
-            day = o.timestamp.date()
-            rain_by_day[day] = max(rain_by_day.get(day, 0.0), o.rainfall_daily)
-    rain_month = sum(rain_by_day.values())
+    rain_month = _calc_grouped_rain_mm(month_obs)
 
     # Yearly rainfall
     year_obs = (
@@ -529,12 +576,13 @@ async def get_wx_summary(db: Session = Depends(get_db)):
         .filter(ObservationHistory.timestamp >= year_start)
         .all()
     )
-    rain_year_by_day: dict = {}
-    for o in year_obs:
-        if o.rainfall_daily is not None and o.timestamp:
-            day = o.timestamp.date()
-            rain_year_by_day[day] = max(rain_year_by_day.get(day, 0.0), o.rainfall_daily)
-    rain_year = sum(rain_year_by_day.values())
+    rain_year = _calc_grouped_rain_mm(year_obs)
+
+    # Lightning summary counts
+    strikes_today = _count_lightning_events(today_start, now)
+    strikes_month = _count_lightning_events(month_start, now)
+    strikes_year = _count_lightning_events(year_start, now)
+    strikes_10m = _count_lightning_events(now - timedelta(minutes=10), now)
 
     # Dew point
     dew_point_c = None
@@ -627,8 +675,14 @@ async def get_wx_summary(db: Session = Depends(get_db)):
         },
         "current": {
             "dew_point_c": dew_point_c,
-            "rain_rate_mm_per_hour": latest.rainfall_rate if latest else None,
+            # Tempest obs_st rainfall_rate is accumulation over the previous minute.
+            "rain_rate_mm_per_hour": ((latest.rainfall_rate or 0.0) * 60.0) if latest and latest.rainfall_rate is not None else None,
             "temp_diff_24h_c": temp_diff_24h_c,
             "temp_trend_c": temp_trend_c,
+            "lightning_strikes_3h": latest.lightning_strike_count if latest else None,
+            "lightning_strikes_today": strikes_today,
+            "lightning_strikes_month": strikes_month,
+            "lightning_strikes_year": strikes_year,
+            "lightning_frequency_10min": round(strikes_10m / 10.0, 2),
         },
     }

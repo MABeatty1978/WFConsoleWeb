@@ -78,8 +78,17 @@ class ObservationParser:
                 "rainfall_daily": obs_data[18] if len(obs_data) > 18 else None,
                 "solar_radiation": obs_data[11],  # W/m^2
                 "uv_index": obs_data[10],
-                "lightning_strike_last_distance": obs_data[14] if len(obs_data) > 14 else None,
-                "lightning_strike_count_3h": obs_data[15] if len(obs_data) > 15 else None,
+                # obs_st index 15 is strikes in the previous minute; use summary for 3h count.
+                "lightning_strike_last_distance": (
+                    (data.get("summary") or {}).get("strike_last_dist")
+                    if isinstance(data.get("summary"), dict)
+                    else None
+                ) or (obs_data[14] if len(obs_data) > 14 else None),
+                "lightning_strike_count_3h": (
+                    (data.get("summary") or {}).get("strike_count_3h")
+                    if isinstance(data.get("summary"), dict)
+                    else None
+                ) or (obs_data[15] if len(obs_data) > 15 else None),
                 "battery_voltage": obs_data[16] if len(obs_data) > 16 else None,
                 "station_id": data.get("station_id"),
                 "device_id": data.get("device_id") or data.get("serial_number"),

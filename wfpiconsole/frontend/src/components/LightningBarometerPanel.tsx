@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { CurrentConditions, Observation } from "../types";
+import { CurrentConditions, Observation, WxSummary } from "../types";
 import { useSettings } from "../context/SettingsContext";
 import "./LightningBarometerPanel.css";
 
@@ -12,9 +12,10 @@ const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 interface Props {
   conditions: CurrentConditions | null;
   observation: Observation | null;
+  wxSummary: WxSummary | null;
 }
 
-export default function LightningBarometerPanel({ conditions, observation }: Props) {
+export default function LightningBarometerPanel({ conditions, observation, wxSummary }: Props) {
   const { settings, setPreferredAtmosPanel } = useSettings();
   const mode = settings?.preferredAtmosPanel ?? "barometer";
   const [lastStrikeDetectedAtMs, setLastStrikeDetectedAtMs] = useState<number | null>(null);
@@ -27,7 +28,11 @@ export default function LightningBarometerPanel({ conditions, observation }: Pro
 
   const pressure = conditions?.pressure_mb ?? null;
   const pressureTrend = conditions?.pressure_trend ?? null;
-  const strikeCount = observation?.lightning_strike_count ?? 0;
+  const strikeCount = wxSummary?.current.lightning_strikes_3h ?? observation?.lightning_strike_count ?? 0;
+  const strikesToday = wxSummary?.current.lightning_strikes_today ?? null;
+  const strikesMonth = wxSummary?.current.lightning_strikes_month ?? null;
+  const strikesYear = wxSummary?.current.lightning_strikes_year ?? null;
+  const strikeFreq10m = wxSummary?.current.lightning_frequency_10min ?? null;
   const strikeDistanceKm =
     conditions?.lightning_distance_km ??
     observation?.lightning_strike_last_distance_km ??
@@ -104,6 +109,22 @@ export default function LightningBarometerPanel({ conditions, observation }: Pro
           <div className="atmos-item">
             <span className="label">Strikes (3h)</span>
             <span className="value">{strikeCount}</span>
+          </div>
+          <div className="atmos-item">
+            <span className="label">Strikes Today</span>
+            <span className="value">{strikesToday ?? "--"}</span>
+          </div>
+          <div className="atmos-item">
+            <span className="label">Strike Freq (10 min)</span>
+            <span className="value">{strikeFreq10m !== null ? `${strikeFreq10m.toFixed(2)}/min` : "--"}</span>
+          </div>
+          <div className="atmos-item">
+            <span className="label">Strikes This Month</span>
+            <span className="value">{strikesMonth ?? "--"}</span>
+          </div>
+          <div className="atmos-item">
+            <span className="label">Strikes This Year</span>
+            <span className="value">{strikesYear ?? "--"}</span>
           </div>
           <div className="atmos-item">
             <span className="label">Last Distance</span>

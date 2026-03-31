@@ -52,6 +52,7 @@ export default function Dashboard() {
               <LightningBarometerPanel
                 conditions={conditions}
                 observation={observation}
+                wxSummary={wxSummary}
               />
             </section>
 
