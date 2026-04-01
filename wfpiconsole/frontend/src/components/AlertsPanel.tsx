@@ -2,7 +2,7 @@
  * Weather alerts panel
  */
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { apiClient } from "../services/api";
 import "./AlertsPanel.css";
 
@@ -25,11 +25,37 @@ export default function AlertsPanel() {
       try {
         setLoading(true);
         setError(null);
-        const system = await apiClient.getSystemInfo();
-        
-        // Alerts are returned in system info
-        // If system has active alerts, display them
-        setAlerts([]);
+        const response = await apiClient.getActiveAlerts();
+
+        const rawAlerts = Array.isArray(response.active_alerts)
+          ? response.active_alerts
+          : [];
+
+        const normalizedAlerts: WeatherAlert[] = rawAlerts.map((alert, index) => {
+          const severityText = String(alert.severity ?? "moderate").toLowerCase();
+          const severity =
+            severityText === "minor" || severityText === "low"
+              ? "low"
+              : severityText === "moderate"
+                ? "moderate"
+                : severityText === "severe" || severityText === "high"
+                  ? "high"
+                  : "critical";
+
+          const triggeredAt = Date.parse(String(alert.triggered_at ?? alert.triggeredAt ?? ""));
+          const expiresAt = Date.parse(String(alert.expires_at ?? alert.cooldown_until ?? alert.expiresAt ?? ""));
+
+          return {
+            id: String(alert.alert_id ?? alert.id ?? `alert-${index}`),
+            title: String(alert.name ?? alert.title ?? "Weather Alert"),
+            description: String(alert.description ?? "Active weather alert in your area."),
+            severity,
+            createdAt: Number.isFinite(triggeredAt) ? Math.floor(triggeredAt / 1000) : Math.floor(Date.now() / 1000),
+            expiresAt: Number.isFinite(expiresAt) ? Math.floor(expiresAt / 1000) : Math.floor(Date.now() / 1000) + 3600,
+          };
+        });
+
+        setAlerts(normalizedAlerts);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load alerts");
       } finally {

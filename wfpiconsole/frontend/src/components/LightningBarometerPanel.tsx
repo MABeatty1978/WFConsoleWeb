@@ -19,7 +19,10 @@ export default function LightningBarometerPanel({ conditions, observation, wxSum
   const { settings, setPreferredAtmosPanel } = useSettings();
   const mode = settings?.preferredAtmosPanel ?? "barometer";
   const [lastStrikeDetectedAtMs, setLastStrikeDetectedAtMs] = useState<number | null>(null);
+  const [boltFlash, setBoltFlash] = useState(false);
   const previousStrikeCountRef = useRef<number | null>(null);
+  const lastEvtStrikeTsRef = useRef<string | null>(null);
+  const flashTimeoutRef = useRef<number | null>(null);
 
   const handleModeChange = async (nextMode: "lightning" | "barometer") => {
     if (nextMode === mode) return;
@@ -33,10 +36,50 @@ export default function LightningBarometerPanel({ conditions, observation, wxSum
   const strikesMonth = wxSummary?.current.lightning_strikes_month ?? null;
   const strikesYear = wxSummary?.current.lightning_strikes_year ?? null;
   const strikeFreq10m = wxSummary?.current.lightning_frequency_10min ?? null;
+  const hasActiveNearbyLightning = (strikeFreq10m ?? 0) > 0;
   const strikeDistanceKm =
     conditions?.lightning_distance_km ??
     observation?.lightning_strike_last_distance_km ??
     null;
+  const lightningStatus =
+    strikeCount > 100
+      ? "Active Lightning Nearby"
+      : strikeCount > 0
+        ? "Recent Lightning in Last 3 Hours"
+        : "No Nearby Lightning in Last 3 Hours";
+
+  const triggerBoltFlash = () => {
+    if (flashTimeoutRef.current !== null) {
+      window.clearTimeout(flashTimeoutRef.current);
+    }
+    setBoltFlash(true);
+    flashTimeoutRef.current = window.setTimeout(() => {
+      setBoltFlash(false);
+    }, 1200);
+  };
+
+  useEffect(() => {
+    // Drive visual strike indication from real event packets (UDP/WebSocket evt_strike).
+    if (observation?.packet_type !== "evt_strike") {
+      return;
+    }
+
+    const eventTs = observation.timestamp ?? null;
+    if (eventTs && eventTs === lastEvtStrikeTsRef.current) {
+      return;
+    }
+
+    lastEvtStrikeTsRef.current = eventTs;
+    const eventMs = observation.timestamp ? Date.parse(observation.timestamp) : Date.now();
+    const effectiveMs = Number.isNaN(eventMs) ? Date.now() : eventMs;
+
+    setLastStrikeDetectedAtMs(effectiveMs);
+    triggerBoltFlash();
+
+    if (mode !== "lightning") {
+      void setPreferredAtmosPanel("lightning");
+    }
+  }, [observation?.packet_type, observation?.timestamp, mode, setPreferredAtmosPanel]);
 
   useEffect(() => {
     const strikeCountNow = strikeCount ?? 0;
@@ -53,6 +96,7 @@ export default function LightningBarometerPanel({ conditions, observation, wxSum
 
     if (hadNewStrike) {
       setLastStrikeDetectedAtMs(effectiveObservationTimeMs);
+      triggerBoltFlash();
       if (mode !== "lightning") {
         void setPreferredAtmosPanel("lightning");
       }
@@ -82,12 +126,29 @@ export default function LightningBarometerPanel({ conditions, observation, wxSum
     lastStrikeDetectedAtMs,
   ]);
 
+  useEffect(() => {
+    return () => {
+      if (flashTimeoutRef.current !== null) {
+        window.clearTimeout(flashTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div className="wx-panel atmos-panel">
       <div className="wx-panel-header atmos-header">
         <span className="wx-panel-title">
           {mode === "lightning" ? "Lightning" : "Barometer"}
         </span>
+        {mode === "lightning" && (
+          <span
+            className={`lightning-bolt-indicator ${hasActiveNearbyLightning ? "active" : ""} ${boltFlash ? "flash" : ""}`}
+            aria-label="Lightning activity indicator"
+            role="img"
+          >
+            ⚡
+          </span>
+        )}
         <div className="atmos-toggle-group">
           <button
             className={`atmos-toggle-btn ${mode === "lightning" ? "active" : ""}`}
@@ -105,7 +166,7 @@ export default function LightningBarometerPanel({ conditions, observation, wxSum
       </div>
 
       {mode === "lightning" ? (
-        <div className="atmos-content">
+        <div className="atmos-content lightning-content">
           <div className="atmos-item">
             <span className="label">Strikes (3h)</span>
             <span className="value">{strikeCount}</span>
@@ -135,7 +196,7 @@ export default function LightningBarometerPanel({ conditions, observation, wxSum
           <div className="atmos-item">
             <span className="label">Status</span>
             <span className="value">
-              {strikeCount > 0 ? "Recent Lightning Activity" : "No Recent Strikes (2h+)"}
+              {lightningStatus}
             </span>
           </div>
         </div>

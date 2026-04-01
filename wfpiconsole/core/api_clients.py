@@ -18,6 +18,8 @@ class WeatherFlowAPI:
 
     BASE_URL = "https://api.weatherflow.com/v4"
     FORECAST_URL = "https://swd.weatherflow.com/swd/rest/better_forecast"
+    SWD_OBSERVATIONS_URL = "https://swd.weatherflow.com/swd/rest/observations/device/{device_id}"
+    SWD_STATS_URL = "https://swd.weatherflow.com/swd/rest/stats/station/{station_id}"
 
     def __init__(self, api_token: str):
         """Initialize with API token"""
@@ -87,6 +89,55 @@ class WeatherFlowAPI:
 
         except httpx.RequestError as e:
             logger.error(f"Failed to fetch observations: {e}")
+            return None
+
+    async def get_device_observations(
+        self,
+        device_id: str,
+        bucket: str,
+        time_start: int,
+        time_end: int,
+    ) -> Optional[Dict[str, Any]]:
+        """Get SWD device observations for a time range.
+
+        This matches the endpoint family used by WeatherFlow PiConsole for
+        rainfall and lightning historical totals.
+        """
+        try:
+            session = await self._get_session()
+            url = self.SWD_OBSERVATIONS_URL.format(device_id=device_id)
+            params = {
+                "bucket": bucket,
+                "time_start": time_start,
+                "time_end": time_end,
+                "token": self.api_token,
+            }
+
+            response = await session.get(url, params=params)
+            response.raise_for_status()
+            return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.warning("WeatherFlow observations request failed with status %s", e.response.status_code)
+            return None
+        except httpx.RequestError as e:
+            logger.error(f"Failed to fetch device observations: {e}")
+            return None
+
+    async def get_station_statistics(self, station_id: str) -> Optional[Dict[str, Any]]:
+        """Get SWD station statistics (stats_day/stats_month/stats_year)."""
+        try:
+            session = await self._get_session()
+            url = self.SWD_STATS_URL.format(station_id=station_id)
+            response = await session.get(url, params={"token": self.api_token})
+            response.raise_for_status()
+            return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.warning("WeatherFlow station statistics request failed with status %s", e.response.status_code)
+            return None
+        except httpx.RequestError as e:
+            logger.error(f"Failed to fetch station statistics: {e}")
             return None
 
     async def get_forecast(

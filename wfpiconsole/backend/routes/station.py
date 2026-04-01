@@ -1,18 +1,20 @@
 """Station observations and data endpoints"""
 import logging
+import os
 from typing import Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
-from wfpiconsole.config.models import ObservationHistory, StationConfig
+from wfpiconsole.config.models import ObservationHistory, StationConfig, APIKey
 from wfpiconsole.backend.dependencies import (
     get_db,
     get_station_config,
 )
+from wfpiconsole.core.api_clients import WeatherFlowAPI
 
 
 logger = logging.getLogger(__name__)
@@ -77,6 +79,122 @@ def _get_merged_wind_values(
         wind_gust = max(wind_speed, wind_gust or wind_speed)
 
     return wind_speed, wind_gust, wind_direction, effective_timestamp
+
+
+def _get_weatherflow_token(db: Session) -> Optional[str]:
+    """Resolve WeatherFlow API token from configured API keys or env vars."""
+    key = (
+        db.query(APIKey)
+        .filter(APIKey.service_name.in_(["weatherflow", "tempest"]))
+        .first()
+    )
+    if key and getattr(key, "key_encrypted", None):
+        try:
+            return key.get_key()
+        except Exception:
+            logger.warning("WeatherFlow API key is present but could not be decrypted")
+
+    return os.getenv("WEATHERFLOW_API_TOKEN") or os.getenv("WEATHERFLOW_TOKEN")
+
+
+async def _get_weatherflow_lightning_metrics(db: Session, now: datetime) -> Optional[dict]:
+    """Fetch PiConsole-style lightning/rain totals from WeatherFlow historical APIs."""
+    def _to_unix_seconds(dt: datetime) -> int:
+        # Project code mostly uses naive UTC datetimes; interpret naive values as UTC
+        # when converting to epoch so time windows are not shifted by local timezone.
+        if dt.tzinfo is None:
+            return int(dt.replace(tzinfo=timezone.utc).timestamp())
+        return int(dt.timestamp())
+
+    station = db.query(StationConfig).first()
+    token = _get_weatherflow_token(db)
+    if not station or not token or not station.tempest_device_id:
+        return None
+
+    client = WeatherFlowAPI(token)
+    try:
+        obs_data = await client.get_device_observations(
+            device_id=str(station.tempest_device_id),
+            bucket="a",
+            time_start=_to_unix_seconds(now - timedelta(hours=24)),
+            time_end=_to_unix_seconds(now),
+        )
+        stats_data = None
+        if station.station_id:
+            stats_data = await client.get_station_statistics(str(station.station_id))
+    finally:
+        await client.close()
+
+    observations = obs_data.get("obs") if isinstance(obs_data, dict) else None
+    strikes_3h = None
+    strike_freq_10m = None
+    if isinstance(observations, list):
+        three_hours_ago_ts = _to_unix_seconds(now - timedelta(hours=3))
+        ten_minutes_ago_ts = _to_unix_seconds(now - timedelta(minutes=10))
+
+        strike_samples_3h = [
+            int(item[15])
+            for item in observations
+            if isinstance(item, list)
+            and len(item) > 15
+            and item[15] is not None
+            and item[0] >= three_hours_ago_ts
+        ]
+        strike_samples_10m = [
+            int(item[15])
+            for item in observations
+            if isinstance(item, list)
+            and len(item) > 15
+            and item[15] is not None
+            and item[0] >= ten_minutes_ago_ts
+        ]
+
+        strikes_3h = sum(strike_samples_3h)
+        strike_freq_10m = round(sum(strike_samples_10m) / 10.0, 2)
+
+    stats_day = stats_data.get("stats_day") if isinstance(stats_data, dict) else None
+    stats_month = stats_data.get("stats_month") if isinstance(stats_data, dict) else None
+    stats_year = stats_data.get("stats_year") if isinstance(stats_data, dict) else None
+
+    def _extract_stat_count(rows: Optional[list]) -> Optional[int]:
+        if not isinstance(rows, list) or not rows:
+            return None
+        latest_row = rows[-1]
+        if not isinstance(latest_row, list) or len(latest_row) <= 24:
+            return None
+        try:
+            return int(latest_row[24])
+        except (TypeError, ValueError):
+            return None
+
+    def _extract_stat_value(rows: Optional[list], index: int, row_offset: int = -1) -> Optional[float]:
+        if not isinstance(rows, list) or not rows:
+            return None
+        if abs(row_offset) > len(rows):
+            return None
+        row = rows[row_offset]
+        if not isinstance(row, list) or len(row) <= index:
+            return None
+        value = row[index]
+        if value is None:
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    return {
+        "strikes_3h": strikes_3h,
+        "strikes_today": _extract_stat_count(stats_day),
+        "strikes_month": _extract_stat_count(stats_month),
+        "strikes_year": _extract_stat_count(stats_year),
+        "strike_freq_10m": strike_freq_10m,
+        # Rain totals from WeatherFlow station stats (same column PiConsole uses).
+        "rain_today_mm": _extract_stat_value(stats_day, 28, -1),
+        "rain_yesterday_mm": _extract_stat_value(stats_day, 28, -2),
+        "rain_month_mm": _extract_stat_value(stats_month, 28, -1),
+        "rain_year_mm": _extract_stat_value(stats_year, 28, -1),
+    }
 
 
 # Pydantic models
@@ -583,6 +701,28 @@ async def get_wx_summary(db: Session = Depends(get_db)):
     strikes_month = _count_lightning_events(month_start, now)
     strikes_year = _count_lightning_events(year_start, now)
     strikes_10m = _count_lightning_events(now - timedelta(minutes=10), now)
+    wf_metrics = await _get_weatherflow_lightning_metrics(db, now)
+
+    rain_today_final = (
+        wf_metrics.get("rain_today_mm")
+        if wf_metrics and wf_metrics.get("rain_today_mm") is not None
+        else rain_today
+    )
+    rain_yesterday_final = (
+        wf_metrics.get("rain_yesterday_mm")
+        if wf_metrics and wf_metrics.get("rain_yesterday_mm") is not None
+        else rain_yesterday
+    )
+    rain_month_final = (
+        wf_metrics.get("rain_month_mm")
+        if wf_metrics and wf_metrics.get("rain_month_mm") is not None
+        else rain_month
+    )
+    rain_year_final = (
+        wf_metrics.get("rain_year_mm")
+        if wf_metrics and wf_metrics.get("rain_year_mm") is not None
+        else rain_year
+    )
 
     # Dew point
     dew_point_c = None
@@ -660,18 +800,18 @@ async def get_wx_summary(db: Session = Depends(get_db)):
         "today": {
             "temp_min_c": round(min(temps_today), 1) if temps_today else None,
             "temp_max_c": round(max(temps_today), 1) if temps_today else None,
-            "rain_mm": round(rain_today, 2),
+            "rain_mm": round(rain_today_final, 2),
             "avg_wind_mps": avg_wind_mps,
             "max_gust_mps": max_gust_mps,
         },
         "yesterday": {
-            "rain_mm": round(rain_yesterday, 2),
+            "rain_mm": round(rain_yesterday_final, 2),
         },
         "month": {
-            "rain_mm": round(rain_month, 2),
+            "rain_mm": round(rain_month_final, 2),
         },
         "year": {
-            "rain_mm": round(rain_year, 2),
+            "rain_mm": round(rain_year_final, 2),
         },
         "current": {
             "dew_point_c": dew_point_c,
@@ -679,10 +819,30 @@ async def get_wx_summary(db: Session = Depends(get_db)):
             "rain_rate_mm_per_hour": ((latest.rainfall_rate or 0.0) * 60.0) if latest and latest.rainfall_rate is not None else None,
             "temp_diff_24h_c": temp_diff_24h_c,
             "temp_trend_c": temp_trend_c,
-            "lightning_strikes_3h": latest.lightning_strike_count if latest else None,
-            "lightning_strikes_today": strikes_today,
-            "lightning_strikes_month": strikes_month,
-            "lightning_strikes_year": strikes_year,
-            "lightning_frequency_10min": round(strikes_10m / 10.0, 2),
+            "lightning_strikes_3h": (
+                wf_metrics.get("strikes_3h")
+                if wf_metrics and wf_metrics.get("strikes_3h") is not None
+                else (latest.lightning_strike_count if latest else None)
+            ),
+            "lightning_strikes_today": (
+                wf_metrics.get("strikes_today")
+                if wf_metrics and wf_metrics.get("strikes_today") is not None
+                else strikes_today
+            ),
+            "lightning_strikes_month": (
+                wf_metrics.get("strikes_month")
+                if wf_metrics and wf_metrics.get("strikes_month") is not None
+                else strikes_month
+            ),
+            "lightning_strikes_year": (
+                wf_metrics.get("strikes_year")
+                if wf_metrics and wf_metrics.get("strikes_year") is not None
+                else strikes_year
+            ),
+            "lightning_frequency_10min": (
+                wf_metrics.get("strike_freq_10m")
+                if wf_metrics and wf_metrics.get("strike_freq_10m") is not None
+                else round(strikes_10m / 10.0, 2)
+            ),
         },
     }

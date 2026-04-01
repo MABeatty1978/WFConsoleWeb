@@ -3,6 +3,7 @@ import logging
 import os
 import platform
 import subprocess
+import httpx
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import List, Optional
@@ -15,7 +16,7 @@ from pydantic import BaseModel
 
 from wfpiconsole import __version__
 from wfpiconsole.config.settings import get_settings
-from wfpiconsole.config.models import AdminUser
+from wfpiconsole.config.models import AdminUser, StationConfig
 from wfpiconsole.backend.dependencies import get_db, get_admin_user
 from wfpiconsole.core.api_clients import GitHubAPI
 
@@ -505,22 +506,62 @@ async def trigger_signal_detection(current_user: AdminUser = Depends(get_admin_u
 
 
 @router.get("/alerts")
-async def get_active_alerts():
+async def get_active_alerts(db: Session = Depends(get_db)):
     """Get list of active weather alerts."""
     from wfpiconsole.core.alerts import get_alert_manager
 
     alert_manager = get_alert_manager()
     active = alert_manager.get_active_alerts()
 
+    combined_alerts = [
+        {
+            "alert_id": alert_id,
+            "name": alert_info["name"],
+            "description": "Triggered from local station thresholds.",
+            "severity": "moderate",
+            "triggered_at": alert_info["triggered_at"],
+            "expires_at": alert_info["cooldown_until"],
+            "source": "local",
+        }
+        for alert_id, alert_info in active.items()
+    ]
+
+    station = db.query(StationConfig).first()
+    if station and station.latitude is not None and station.longitude is not None:
+        try:
+            point = f"{station.latitude},{station.longitude}"
+            async with httpx.AsyncClient(timeout=15.0, headers={"User-Agent": "WFConsoleWeb/0.1"}) as client:
+                response = await client.get(
+                    "https://api.weather.gov/alerts/active",
+                    params={"point": point},
+                )
+                response.raise_for_status()
+                payload = response.json()
+
+            for feature in payload.get("features", []):
+                props = feature.get("properties") or {}
+                alert_id = feature.get("id") or props.get("id")
+                event_name = props.get("event") or props.get("headline") or "Weather Alert"
+                description = props.get("description") or props.get("headline") or "Active weather alert in your area."
+                severity = (props.get("severity") or "moderate").lower()
+                triggered_at = props.get("effective") or props.get("onset") or props.get("sent")
+                expires_at = props.get("ends") or props.get("expires")
+
+                combined_alerts.append(
+                    {
+                        "alert_id": alert_id,
+                        "name": event_name,
+                        "description": description,
+                        "severity": severity,
+                        "triggered_at": triggered_at,
+                        "expires_at": expires_at,
+                        "source": "nws",
+                    }
+                )
+        except Exception as exc:
+            logger.warning("Unable to fetch NWS alerts: %s", exc)
+
     return {
-        "active_alerts": [
-            {
-                "alert_id": alert_id,
-                "name": alert_info["name"],
-                "triggered_at": alert_info["triggered_at"],
-                "cooldown_until": alert_info["cooldown_until"],
-            }
-            for alert_id, alert_info in active.items()
-        ],
-        "total_active": len(active),
+        "active_alerts": combined_alerts,
+        "total_active": len(combined_alerts),
     }

@@ -118,8 +118,10 @@ export default function AstronomicalPanel() {
                   <div className="sun-position" style={{ left: `${Math.max(0, Math.min(100, sunProgress))}%` }}>
                     ☀️
                   </div>
-                  <div className="sun-marker sunrise">Sunrise</div>
-                  <div className="sun-marker sunset">Sunset</div>
+                </div>
+                <div className="sun-marker-row" aria-hidden="true">
+                  <span className="sun-marker sunrise">Sunrise</span>
+                  <span className="sun-marker sunset">Sunset</span>
                 </div>
               </div>
 

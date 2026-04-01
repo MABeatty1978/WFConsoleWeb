@@ -71,10 +71,13 @@ export function useObservation(autoRefresh = true) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastObservationTsMsRef = useRef<number>(0);
+  const hasLoadedOnceRef = useRef(false);
 
-  const fetchLatest = useCallback(async () => {
+  const fetchLatest = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent && !hasLoadedOnceRef.current) {
+        setLoading(true);
+      }
       setError(null);
       const [obs, conds] = await Promise.all([
         apiClient.getLatestObservation(),
@@ -85,13 +88,16 @@ export function useObservation(autoRefresh = true) {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch observations");
     } finally {
-      setLoading(false);
+      if (!hasLoadedOnceRef.current) {
+        hasLoadedOnceRef.current = true;
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     if (autoRefresh) {
-      fetchLatest();
+      fetchLatest(false);
     }
 
     // Subscribe to WebSocket updates
@@ -129,7 +135,7 @@ export function useObservation(autoRefresh = true) {
       });
 
       if (packetType !== "rapid_wind") {
-        void fetchLatest();
+        void fetchLatest(true);
       }
     });
 

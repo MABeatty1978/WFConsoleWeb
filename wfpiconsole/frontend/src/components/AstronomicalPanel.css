@@ -128,21 +128,25 @@
 }
 
 .sun-marker {
-  position: absolute;
-  top: 0;
   font-size: 0.7rem;
   opacity: 0.5;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+.sun-marker-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0.4rem 0;
 }
 
 .sun-marker.sunrise {
-  left: 2%;
-  transform: translateX(-50%);
+  text-align: left;
 }
 
 .sun-marker.sunset {
-  right: 2%;
-  transform: translateX(50%);
+  text-align: right;
 }
 
 .moon-display {
@@ -208,10 +212,13 @@
 }
 
 .data-item .label {
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-size: 0.76rem;
+  text-transform: none;
+  letter-spacing: 0.2px;
   opacity: 0.6;
+  max-width: 62%;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .data-item .value {
