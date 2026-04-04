@@ -45,8 +45,8 @@ yarn-error.log
 .npm
 
 # Build artifacts
-/wfpiconsole/frontend/dist/
-/wfpiconsole/frontend/build/
+/wfconsoleweb/frontend/dist/
+/wfconsoleweb/frontend/build/
 /coverage/
 .pytest_cache/
 
@@ -54,13 +54,13 @@ yarn-error.log
 *.db
 *.sqlite
 *.sqlite3
-wfpiconsole.db
+wfconsoleweb.db
 
 # Secrets & config
 .env
 .env.local
 *.key
-wfpiconsole.ini
+wfconsoleweb.ini
 
 # OS
 .DS_Store
@@ -71,3 +71,4 @@ Thumbs.db
 # Logs
 *.log
 logs/
+

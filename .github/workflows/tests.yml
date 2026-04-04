@@ -31,7 +31,7 @@ jobs:
 
     - name: Run tests
       run: |
-        pytest tests/ -v --cov=wfpiconsole --cov-report=xml
+        pytest tests/ -v --cov=wfconsoleweb --cov-report=xml
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
@@ -60,20 +60,20 @@ jobs:
 
     - name: Check formatting with black
       run: |
-        black --check wfpiconsole/ tests/
+        black --check wfconsoleweb/ tests/
 
     - name: Check import sorting with isort
       run: |
-        isort --check-only wfpiconsole/ tests/
+        isort --check-only wfconsoleweb/ tests/
 
     - name: Lint with flake8
       run: |
-        flake8 wfpiconsole/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 wfpiconsole/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        flake8 wfconsoleweb/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 wfconsoleweb/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
     - name: Type check with mypy
       run: |
-        mypy wfpiconsole/ --ignore-missing-imports --no-error-summary 2>&1 || true
+        mypy wfconsoleweb/ --ignore-missing-imports --no-error-summary 2>&1 || true
 
   security:
     runs-on: ubuntu-latest
@@ -94,7 +94,7 @@ jobs:
 
     - name: Check for security issues with bandit
       run: |
-        bandit -r wfpiconsole/ -ll --skip B101 || true
+        bandit -r wfconsoleweb/ -ll --skip B101 || true
 
     - name: Check for vulnerable dependencies
       run: |

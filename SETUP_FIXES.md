@@ -11,7 +11,7 @@ python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 python scripts/setup-admin.py --username admin --password "ChangeMe123!" --reset-existing --non-interactive
-python -m uvicorn wfpiconsole.backend.main:app --reload
+python -m uvicorn wfconsoleweb.backend.main:app --reload
 ```
 
 Then open `http://localhost:8000`.
@@ -29,9 +29,9 @@ Then open `http://localhost:8000`.
 
 - `pip install -e .` completes successfully
 - `python scripts/setup-admin.py ... --reset-existing --non-interactive` succeeds
-- `wfpiconsole-web` starts without import errors
+- `wfconsoleweb` starts without import errors
 - login works with the configured admin account
-- `cd wfpiconsole/frontend && npm run build` completes successfully when frontend changes are made
+- `cd wfconsoleweb/frontend && npm run build` completes successfully when frontend changes are made
 
 ## Canonical Docs
 
@@ -41,3 +41,4 @@ Use these files as the maintained sources of truth:
 - [DEPLOYMENT.md](DEPLOYMENT.md)
 
 Treat older troubleshooting snippets or one-off setup notes as historical unless they match those two files.
+

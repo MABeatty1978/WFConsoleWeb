@@ -57,8 +57,8 @@ function Get-BackendProcessByCommandLine {
     foreach ($proc in $processes) {
         if (
             $proc.CommandLine -and (
-                $proc.CommandLine -match "wfpiconsole\.backend\.main" -or
-                $proc.CommandLine -match "wfpiconsole-web\.exe"
+                $proc.CommandLine -match "wfconsoleweb\.backend\.main" -or
+                $proc.CommandLine -match "wfconsoleweb\.exe"
             )
         ) {
             return $proc
@@ -97,7 +97,7 @@ function Start-Backend {
 
     $startArgs = @{
         FilePath = $pythonExe
-        ArgumentList = @("-m", "wfpiconsole.backend.main")
+        ArgumentList = @("-m", "wfconsoleweb.backend.main")
         WorkingDirectory = $RepoRoot
         RedirectStandardOutput = $LogFile
         RedirectStandardError = $ErrFile

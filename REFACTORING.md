@@ -54,8 +54,8 @@ Successfully refactored the entire WFConsoleWeb project to consistently use "WFC
 |-----------|------|-------|
 | Display Name | WFConsoleWeb | User-facing branding |
 | PyPI Package | wfconsoleweb | Installation via pip |
-| CLI Entry Point | wfpiconsole-web | Backwards compatibility |
-| Module Name | wfpiconsole | Internal Python module (unchanged) |
+| CLI Entry Point | wfconsoleweb | Backwards compatibility |
+| Module Name | wfconsoleweb | Internal Python module (unchanged) |
 | Docker Image | wfconsoleweb | Container image name |
 | Frontend Package | wfconsoleweb-frontend | React/npm package |
 | Service Name (systemd) | wfconsoleweb | Linux service |
@@ -78,11 +78,11 @@ wfpiconsole/              # Root Python package (kept for backwards compatibilit
 
 To maintain backwards compatibility and avoid breaking existing code:
 
-1. **Module directory** `wfpiconsole/` kept unchanged
+1. **Module directory** `wfconsoleweb/` kept unchanged
    - Prevents breaking all import statements
    - Users don't need to update their imports
 
-2. **Entry point script** `wfpiconsole-web` retained
+2. **Entry point script** `wfconsoleweb` retained
    - Users with existing scripts/shortcuts continue to work
    - Documented as the canonical way to start the application
 
@@ -103,7 +103,7 @@ To maintain backwards compatibility and avoid breaking existing code:
 
 ### No Breaking Changes
 - Installation method unchanged
-- Command to start app unchanged (`wfpiconsole-web`)
+- Command to start app unchanged (`wfconsoleweb`)
 - Python imports unchanged
 - Configuration files unchanged
 - Database schema unchanged
@@ -149,7 +149,7 @@ All changes verified with grep searches:
 
 1. **Test the application** to ensure the UI displays correctly with new branding
 2. **Test package installation**: `pip install -e .`
-3. **Verify entry point**: `wfpiconsole-web --help`
+3. **Verify entry point**: `wfconsoleweb --help`
 4. **Test deployment** on target platforms (Windows, Linux, Docker)
 5. **Commit changes** to version control with message: "refactor: Update branding to WFConsoleWeb"
 
@@ -164,3 +164,4 @@ No additional setup required. The refactoring is complete and ready for:
 - Deployment
 
 All existing installation methods and workflows remain unchanged.
+

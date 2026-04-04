@@ -83,8 +83,8 @@ def main():
     print_header("WFConsoleWeb Build & Package Script")
     
     root_dir = Path(__file__).parent.absolute()
-    frontend_dir = root_dir / "wfpiconsole" / "frontend"
-    backend_dir = root_dir / "wfpiconsole" / "backend"
+    frontend_dir = root_dir / "wfconsoleweb" / "frontend"
+    backend_dir = root_dir / "wfconsoleweb" / "backend"
     
     # Check Python version
     print_step("Checking Python version...")
@@ -221,7 +221,7 @@ def main():
     
     print("1. Test the installation:")
     print("     pip install dist/wfconsoleweb-*.whl")
-    print("     wfpiconsole-web")
+    print("     wfconsoleweb")
     print()
     print("2. Access the web interface:")
     print("     http://localhost:8000")

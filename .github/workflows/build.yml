@@ -19,11 +19,11 @@ jobs:
       with:
         node-version: '20'
         cache: 'npm'
-        cache-dependency-path: 'wfpiconsole/frontend/package-lock.json'
+        cache-dependency-path: 'wfconsoleweb/frontend/package-lock.json'
 
     - name: Build frontend
       run: |
-        cd wfpiconsole/frontend
+        cd wfconsoleweb/frontend
         npm install
         npm run build
         cd ../..

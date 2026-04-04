@@ -18,7 +18,7 @@ services:
       - RELOAD=false
       
       # Database (use volume for persistence)
-      - DATABASE_URL=sqlite:////app/data/wfpiconsole.db
+      - DATABASE_URL=sqlite:////app/data/wfconsoleweb.db
       
       # Security - Generate with: openssl rand -hex 32
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-this-to-a-random-value}
@@ -84,3 +84,4 @@ volumes:
 # volumes:
 #   postgres_data:
 #     driver: local
+

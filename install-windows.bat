@@ -8,7 +8,7 @@ setlocal enabledelayedexpansion
 set "SCRIPT_DIR=%~dp0"
 set "INSTALL_DIR=%LocalAppData%\WFConsoleWeb"
 set "INSTALL_DATA_DIR=%INSTALL_DIR%\data"
-set "INSTALL_DB_URL=sqlite:///%INSTALL_DIR:\=/%/wfpiconsole.db"
+set "INSTALL_DB_URL=sqlite:///%INSTALL_DIR:\=/%/wfconsoleweb.db"
 set "LOG_FILE=%INSTALL_DIR%\install.log"
 
 echo.
@@ -106,7 +106,7 @@ echo [OK] Found Node.js !NODE_VERSION!
 
 echo.
 echo [*] Installing frontend dependencies...
-cd /d "%SCRIPT_DIR%wfpiconsole\frontend"
+cd /d "%SCRIPT_DIR%wfconsoleweb\frontend"
 call npm install 2>&1 >> "%LOG_FILE%"
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to install frontend dependencies
@@ -173,7 +173,7 @@ set "STARTUP_SCRIPT=%INSTALL_DIR%\run.bat"
     echo set "DATABASE_URL=%INSTALL_DB_URL%"
     echo set "DATA_DIR=%INSTALL_DATA_DIR%"
     echo call "%INSTALL_DIR%\venv\Scripts\activate.bat"
-    echo wfpiconsole-web
+    echo wfconsoleweb-web
     echo pause
 ) > "!STARTUP_SCRIPT!"
 echo [OK] Startup script created at !STARTUP_SCRIPT!
@@ -213,7 +213,7 @@ echo   - On first run, you'll be prompted to configure your API key
 echo   - Settings are stored in: %INSTALL_DIR%
 echo.
 echo Logs and Database:
-echo   - Database: %INSTALL_DIR%\wfpiconsole.db
+echo   - Database: %INSTALL_DIR%\wfconsoleweb.db
 echo   - Logs: %LOG_FILE%
 echo.
 echo Documentation: See README.md in the installation directory
@@ -221,3 +221,4 @@ echo.
 echo ===========================================================================
 echo.
 pause
+

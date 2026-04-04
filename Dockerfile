@@ -5,7 +5,7 @@ FROM node:20-alpine AS frontend-builder
 WORKDIR /app/frontend
 
 # Copy frontend source
-COPY wfpiconsole/frontend /app/frontend
+COPY wfconsoleweb/frontend /app/frontend
 
 # Install dependencies and build
 RUN npm install && \
@@ -41,7 +41,7 @@ WORKDIR /app
 COPY --chown=wfconsole:wfconsole . /app/
 
 # Copy built frontend from builder stage to the path served by backend/main.py
-COPY --from=frontend-builder --chown=wfconsole:wfconsole /app/frontend/build /app/wfpiconsole/frontend/build
+COPY --from=frontend-builder --chown=wfconsole:wfconsole /app/frontend/build /app/wfconsoleweb/frontend/build
 
 # Install Python dependencies
 RUN pip install --upgrade pip setuptools wheel && \
@@ -64,4 +64,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 VOLUME ["/app/data"]
 
 # Start command
-CMD ["wfpiconsole-web"]
+CMD ["wfconsoleweb"]

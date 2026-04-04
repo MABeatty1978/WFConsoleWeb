@@ -36,7 +36,7 @@ function Get-PythonExecutable {
 function Resolve-DatabasePath {
     $dbUrl = $env:DATABASE_URL
     if ([string]::IsNullOrWhiteSpace($dbUrl)) {
-        return Join-Path $RepoRoot "wfpiconsole.db"
+        return Join-Path $RepoRoot "wfconsoleweb.db"
     }
 
     if ($dbUrl.StartsWith("sqlite:///")) {
@@ -56,7 +56,7 @@ try {
     $dbPath = Resolve-DatabasePath
     if ($dbPath -and (Test-Path $dbPath)) {
         $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-        $backupPath = Join-Path $BackupDir "wfpiconsole-$timestamp.db"
+        $backupPath = Join-Path $BackupDir "wfconsoleweb-$timestamp.db"
         Copy-Item -Path $dbPath -Destination $backupPath -Force
         Write-Log "Database backup created: $backupPath"
     } else {

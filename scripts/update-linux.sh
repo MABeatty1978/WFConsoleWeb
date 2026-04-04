@@ -41,7 +41,7 @@ log() {
 
 resolve_db_path() {
   if [[ -z "${DATABASE_URL:-}" ]]; then
-    echo "${REPO_ROOT}/wfpiconsole.db"
+    echo "${REPO_ROOT}/wfconsoleweb.db"
     return 0
   fi
 
@@ -71,8 +71,8 @@ restart_backend() {
     return 0
   fi
 
-  pkill -f "wfpiconsole.backend.main" || true
-  nohup python -m wfpiconsole.backend.main >/dev/null 2>&1 &
+  pkill -f "wfconsoleweb.backend.main" || true
+  nohup python -m wfconsoleweb.backend.main >/dev/null 2>&1 &
 }
 
 main() {
@@ -83,7 +83,7 @@ main() {
   if [[ -n "${db_path}" && -f "${db_path}" ]]; then
     local ts
     ts="$(date +%Y%m%d-%H%M%S)"
-    cp "${db_path}" "${BACKUP_DIR}/wfpiconsole-${ts}.db"
+    cp "${db_path}" "${BACKUP_DIR}/wfconsoleweb-${ts}.db"
     log "Database backup created"
   else
     log "Database backup skipped (non-sqlite or missing file)"

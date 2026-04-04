@@ -1,0 +1,227 @@
+/**
+ * Rainfall panel styles
+ */
+
+/* ---- body layout ---- */
+.rainfall-body {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 1.25rem;
+  flex: 1;
+}
+
+/* ---- period totals grid ---- */
+.rainfall-totals {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+}
+
+.rainfall-period {
+  background: rgba(0,0,0,0.2);
+  border-radius: calc(var(--corner-radius) * 0.75);
+  padding: 0.85rem 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.rainfall-period-label {
+  font-size: 0.72rem;
+  opacity: 0.55;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rainfall-period-value {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  line-height: 1.1;
+}
+
+.rainfall-unit {
+  font-size: 0.86rem;
+  font-weight: 400;
+  opacity: 0.75;
+}
+
+/* ---- gauge column ---- */
+.rainfall-gauge-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rain-gauge-svg {
+  width: 96px;
+  height: 142px;
+}
+
+.gauge-rate-text {
+  font-size: 7px;
+  fill: rgba(255,255,255,0.6);
+}
+
+.rainfall-highlights {
+  margin-top: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.rainfall-highlight-item {
+  padding: 0.7rem 0.8rem;
+  border-radius: var(--corner-radius);
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.rainfall-highlight-label {
+  font-size: 0.7rem;
+  opacity: 0.65;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rainfall-highlight-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #7cc8ff;
+}
+
+/* animated rain fill */
+.rain-fill-animate {
+  animation: rainRise 1.5s ease-out;
+}
+@keyframes rainRise {
+  from { transform: scaleY(0); transform-origin: bottom; }
+  to   { transform: scaleY(1); transform-origin: bottom; }
+}
+
+/* animated rain drops */
+.raindrop {
+  animation: dropFall 1.2s linear infinite;
+  opacity: 0;
+}
+.raindrop.d1 { animation-delay: 0s;    }
+.raindrop.d2 { animation-delay: 0.4s;  }
+.raindrop.d3 { animation-delay: 0.8s;  }
+
+@keyframes dropFall {
+  0%   { transform: translateY(-8px); opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateY(6px);  opacity: 0; }
+}
+
+/* ---- rate footer ---- */
+.rainfall-rate-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.65rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  font-size: 0.92rem;
+}
+
+.rainfall-rate-label { opacity: 0.6; }
+.rainfall-rate-value {
+  font-weight: 700;
+  color: #64b5f6;
+  font-size: 1.06rem;
+}
+
+@media (min-width: 1181px) {
+  .primary-panels-grid .rainfall-body {
+    gap: 0.85rem;
+  }
+
+  .primary-panels-grid .rainfall-totals {
+    gap: 0.6rem;
+  }
+
+  .primary-panels-grid .rainfall-period {
+    padding: 0.62rem 0.7rem;
+  }
+
+  .primary-panels-grid .rainfall-period-label {
+    font-size: 0.62rem;
+  }
+
+  .primary-panels-grid .rainfall-period-value {
+    font-size: 1.3rem;
+  }
+
+  .primary-panels-grid .rainfall-unit {
+    font-size: 0.72rem;
+  }
+
+  .primary-panels-grid .rain-gauge-svg {
+    width: 76px;
+    height: 116px;
+  }
+
+  .primary-panels-grid .rainfall-highlights {
+    gap: 0.5rem;
+    margin-top: 0.45rem;
+  }
+
+  .primary-panels-grid .rainfall-highlight-item {
+    padding: 0.5rem 0.58rem;
+  }
+
+  .primary-panels-grid .rainfall-highlight-label {
+    font-size: 0.58rem;
+  }
+
+  .primary-panels-grid .rainfall-highlight-value {
+    font-size: 0.82rem;
+  }
+
+  .primary-panels-grid .rainfall-rate-footer {
+    margin-top: 0.45rem;
+    padding-top: 0.55rem;
+    font-size: 0.78rem;
+  }
+
+  .primary-panels-grid .rainfall-rate-value {
+    font-size: 0.86rem;
+  }
+}
+
+/* ---- responsive ---- */
+@media (max-width: 520px) {
+  .rainfall-body { grid-template-columns: 1fr; }
+  .rainfall-gauge-col { display: none; }
+  .rainfall-highlights { grid-template-columns: 1fr; }
+}
+
+@media (min-width: 1500px) {
+  .primary-panels-grid .rainfall-period-value {
+    font-size: 1.38rem;
+  }
+
+  .primary-panels-grid .rain-gauge-svg {
+    width: 82px;
+    height: 124px;
+  }
+
+  .primary-panels-grid .rainfall-highlight-value {
+    font-size: 0.88rem;
+  }
+}
+
+@media (min-width: 1800px) {
+  .primary-panels-grid .rainfall-period-value {
+    font-size: 1.45rem;
+  }
+
+  .primary-panels-grid .rain-gauge-svg {
+    width: 88px;
+    height: 132px;
+  }
+}

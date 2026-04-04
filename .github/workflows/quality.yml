@@ -29,7 +29,7 @@ jobs:
 
     - name: Run tests with coverage
       run: |
-        pytest tests/ -v --cov=wfpiconsole --cov-report=xml --cov-report=html
+        pytest tests/ -v --cov=wfconsoleweb --cov-report=xml --cov-report=html
 
     - name: SonarCloud Scan
       uses: SonarSource/sonarcloud-github-action@master
@@ -39,7 +39,7 @@ jobs:
       with:
         args: >
           -Dsonar.projectBaseDir=.
-          -Dsonar.sources=wfpiconsole
+          -Dsonar.sources=wfconsoleweb
           -Dsonar.tests=tests
           -Dsonar.python.coverage.reportPaths=coverage.xml
           -Dsonar.python.xunit.reportPath=test-results.xml
@@ -64,18 +64,18 @@ jobs:
     - name: Calculate cyclomatic complexity
       run: |
         echo "=== Cyclomatic Complexity ===" 
-        radon cc wfpiconsole/ -a -j > complexity-report.json || true
+        radon cc wfconsoleweb/ -a -j > complexity-report.json || true
         cat complexity-report.json
 
     - name: Calculate maintainability index
       run: |
         echo "=== Maintainability Index ===" 
-        radon mi wfpiconsole/ || true
+        radon mi wfconsoleweb/ || true
 
     - name: Generate lint report
       run: |
         echo "=== Pylint Report ===" 
-        pylint wfpiconsole/ --exit-zero --output-format=json > lint-report.json || true
+        pylint wfconsoleweb/ --exit-zero --output-format=json > lint-report.json || true
         head -20 lint-report.json
 
     - name: Upload reports

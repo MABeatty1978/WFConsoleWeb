@@ -14,6 +14,7 @@ https://github.com/peted-davis/WeatherFlow_PiConsole
 - Live dashboard with WebSocket-backed updates
 - Historical analytics for temperature, wind, pressure, humidity, lightning, and rainfall
 - Public forecast endpoints used by the dashboard
+- Multi-source forecast panel with Tempest, Sager, and Zambretti modes
 - Theme support and configurable display settings
 - Local SQLite storage with configurable data directory
 - Windows and Linux installer scripts
@@ -23,7 +24,7 @@ https://github.com/peted-davis/WeatherFlow_PiConsole
 
 ```text
 WFConsoleWeb/
-├── wfpiconsole/                # Python package
+├── wfconsoleweb/               # Python package
 │   ├── backend/                # FastAPI app and routes
 │   ├── config/                 # settings, database, models
 │   ├── core/                   # data processing and API clients
@@ -115,13 +116,13 @@ Important behavior:
 ### Preferred local command
 
 ```bash
-wfpiconsole-web
+wfconsoleweb
 ```
 
 ### Development server with reload
 
 ```bash
-python -m uvicorn wfpiconsole.backend.main:app --reload
+python -m uvicorn wfconsoleweb.backend.main:app --reload
 ```
 
 The backend listens on `http://localhost:8000` by default.
@@ -144,7 +145,7 @@ Equivalent batch wrapper:
 
 ## Frontend Build And Development
 
-The backend prefers serving the compiled React build from `wfpiconsole/frontend/build`.
+The backend prefers serving the compiled React build from `wfconsoleweb/frontend/build`.
 
 That means:
 
@@ -154,7 +155,7 @@ That means:
 Build the frontend:
 
 ```bash
-cd wfpiconsole/frontend
+cd wfconsoleweb/frontend
 npm install
 npm run build
 ```
@@ -162,7 +163,7 @@ npm run build
 Run the React dev server separately:
 
 ```bash
-cd wfpiconsole/frontend
+cd wfconsoleweb/frontend
 npm install
 npm start
 ```
@@ -200,15 +201,15 @@ pip install -r requirements-dev.txt
 Run tests:
 
 ```bash
-pytest tests -v --cov=wfpiconsole
+pytest tests -v --cov=wfconsoleweb
 ```
 
 Useful checks:
 
 ```bash
-black wfpiconsole tests
-isort wfpiconsole tests
-flake8 wfpiconsole tests
+black wfconsoleweb tests
+isort wfconsoleweb tests
+flake8 wfconsoleweb tests
 ```
 
 The test suite includes an installer/admin regression that verifies:
@@ -231,10 +232,23 @@ Common environment variables:
 
 Defaults for local development:
 
-- database: `./wfpiconsole.db`
+- database: `./wfconsoleweb.db`
 - data directory: `./data`
 - host: `0.0.0.0`
 - port: `8000`
+
+## Forecast Methods
+
+WFConsoleWeb supports three forecast overlays in the Forecast panel:
+
+- Tempest Better Forecast (WeatherFlow API)
+- Sager pressure-trend forecast
+- Zambretti barometric dial forecast
+
+Zambretti implementation note:
+
+- The Zambretti calculation approach in this project is based on and adapted from the SAS Communities reference repository: https://github.com/sascommunities/iot-zambretti-weather-forcasting
+- The app applies that method to locally collected station observations and renders the result in an animated dial view in the Forecast panel.
 
 ## Docker
 
@@ -256,7 +270,7 @@ docker compose down
 Start on another port:
 
 ```bash
-python -m uvicorn wfpiconsole.backend.main:app --port 8001
+python -m uvicorn wfconsoleweb.backend.main:app --port 8001
 ```
 
 ### Frontend changes are not visible
@@ -264,7 +278,7 @@ python -m uvicorn wfpiconsole.backend.main:app --port 8001
 Rebuild the frontend bundle:
 
 ```bash
-cd wfpiconsole/frontend
+cd wfconsoleweb/frontend
 npm run build
 ```
 
@@ -289,3 +303,4 @@ Check `DATABASE_URL`. Installers set this explicitly so the installed app uses i
 ## License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE).
+

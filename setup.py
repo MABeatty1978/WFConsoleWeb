@@ -16,7 +16,7 @@ with open("requirements-dev.txt", "r", encoding="utf-8") as fh:
 
 setup(
     name="wfconsoleweb",
-    version="0.1.0a1",
+    version="0.2.0",
     author="WFConsoleWeb Contributors",
     description="Web interface for the Tempest weather station by WeatherFlow",
     long_description=long_description,
@@ -45,12 +45,12 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "wfpiconsole-web=wfpiconsole.backend.main:main",
+            "wfconsoleweb=wfconsoleweb.backend.main:main",
         ],
     },
     include_package_data=True,
     package_data={
-        "wfpiconsole": [
+        "wfconsoleweb": [
             "frontend/dist/**/*",
             "themes/**/*",
         ],

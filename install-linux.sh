@@ -12,7 +12,7 @@ SERVICE_DIR="/etc/systemd/system"
 LOG_FILE="${INSTALL_DIR}/install.log"
 VENV_DIR="${INSTALL_DIR}/venv"
 DATA_DIR="${INSTALL_DIR}/data"
-INSTALL_DB_URL="sqlite:///${INSTALL_DIR}/wfpiconsole.db"
+INSTALL_DB_URL="sqlite:///${INSTALL_DIR}/wfconsoleweb.db"
 
 # Color codes for output
 RED='\033[0;31m'
@@ -125,7 +125,7 @@ NODE_VERSION=$(node --version 2>&1)
 log_ok "Found Node.js ${NODE_VERSION}"
 
 log_info "Installing frontend dependencies..."
-cd "${SCRIPT_DIR}/wfpiconsole/frontend"
+cd "${SCRIPT_DIR}/wfconsoleweb/frontend"
 npm install 2>&1 | tail -n 3
 log_ok "Frontend dependencies installed"
 
@@ -174,11 +174,11 @@ cat > "${STARTUP_SCRIPT}" << 'EOF'
 # WFConsoleWeb Startup Script
 INSTALL_DIR="$(dirname "$0")"
 VENV_DIR="$(dirname "$0")/venv"
-export DATABASE_URL="sqlite:///${INSTALL_DIR}/wfpiconsole.db"
+export DATABASE_URL="sqlite:///${INSTALL_DIR}/wfconsoleweb.db"
 export DATA_DIR="${INSTALL_DIR}/data"
 cd "${INSTALL_DIR}"
 source "${VENV_DIR}/bin/activate"
-exec wfpiconsole-web
+exec wfconsoleweb
 EOF
 chmod +x "${STARTUP_SCRIPT}"
 log_ok "Startup script created at ${STARTUP_SCRIPT}"
@@ -225,7 +225,7 @@ PORT=8000
 RELOAD=false
 
 # Database
-DATABASE_URL=sqlite:///./wfpiconsole.db
+DATABASE_URL=sqlite:///./wfconsoleweb.db
 
 # Secret Key (generate with: openssl rand -hex 32)
 SECRET_KEY=your-secret-key-here-change-this
@@ -267,7 +267,7 @@ echo "    ${STARTUP_SCRIPT}"
 echo ""
 echo "  Option 2 - Run from current shell:"
 echo "    source ${VENV_DIR}/bin/activate"
-echo "    wfpiconsole-web"
+echo "    wfconsoleweb"
 echo ""
 echo "  Option 3 - Install as system service (Linux only):"
 echo "    sudo cp ${SERVICE_FILE} ${SERVICE_DIR}/"
@@ -281,7 +281,7 @@ echo "  http://localhost:8000"
 echo ""
 
 log_info "Configuration files:"
-echo "  Database: ${INSTALL_DIR}/wfpiconsole.db"
+echo "  Database: ${INSTALL_DIR}/wfconsoleweb.db"
 echo "  Environment: ${INSTALL_DIR}/.env"
 echo "  Logs: ${LOG_FILE}"
 echo ""
@@ -298,3 +298,4 @@ echo "  Deployment: ${SCRIPT_DIR}/DEPLOYMENT.md"
 echo ""
 echo "==========================================================================="
 echo ""
+

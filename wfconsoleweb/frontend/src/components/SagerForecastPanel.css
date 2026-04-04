@@ -1,0 +1,488 @@
+/**
+ * Sager forecast panel styles
+ */
+
+.sager-panel {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  border: 1px solid var(--color-secondary);
+  border-radius: var(--corner-radius);
+  padding: 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sager-panel:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.sager-panel h3 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.panel-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.panel-header-row h3 {
+  margin: 0;
+  min-width: 0;
+}
+
+.forecast-toggle-group {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.forecast-toggle-btn {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--color-text);
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.forecast-toggle-btn.active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-button-text, #fff);
+}
+
+.forecast-inline-notice {
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--corner-radius);
+  background: rgba(255, 193, 7, 0.14);
+  border: 1px solid rgba(255, 193, 7, 0.35);
+  color: #ffe08a;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.sager-panel .loading,
+.sager-panel .error {
+  text-align: center;
+  padding: 2rem;
+  opacity: 0.6;
+}
+
+.sager-panel .error {
+  color: #f44336;
+  opacity: 1;
+}
+
+.retry-btn {
+  display: block;
+  margin: 1rem auto 0;
+  padding: 0.5rem 1rem;
+  background-color: var(--color-accent);
+  color: var(--color-button-text, #ffffff);
+  border: none;
+  border-radius: var(--corner-radius);
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.retry-btn:hover {
+  opacity: 0.8;
+  transform: translateY(-2px);
+}
+
+.forecast-main {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.forecast-icon {
+  font-size: 4rem;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.forecast-info {
+  flex: 1;
+}
+
+.forecast-text {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.pressure-trend {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.95rem;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.forecast-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex: 1;
+}
+
+.forecast-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+  align-content: start;
+}
+
+.forecast-details-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.72rem 0.82rem;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: var(--corner-radius);
+}
+
+.detail-item .label {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+  opacity: 0.62;
+  font-weight: 600;
+}
+
+.detail-item .value {
+  font-size: 0.92rem;
+  color: var(--color-accent);
+  text-align: right;
+}
+
+.forecast-description {
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.forecast-info-box {
+  background-color: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: var(--corner-radius);
+  padding: 1rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  opacity: 0.7;
+}
+
+.forecast-info-box p {
+  margin: 0;
+}
+
+.zambretti-main {
+  gap: 0;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+}
+
+.zambretti-info {
+  min-width: 0;
+}
+
+.zambretti-kicker {
+  margin: 0 0 0.35rem;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.64);
+}
+
+.sager-panel.tempest-mode .panel-header-row {
+  margin-bottom: 1rem;
+}
+
+.sager-panel.tempest-mode .forecast-main {
+  gap: 1.35rem;
+  margin-bottom: 1.1rem;
+  padding-bottom: 1rem;
+}
+
+.sager-panel.tempest-mode .forecast-icon {
+  font-size: 3.3rem;
+}
+
+.sager-panel.tempest-mode .forecast-text {
+  font-size: 1.3rem;
+}
+
+.sager-panel.tempest-mode .forecast-details {
+  gap: 0.7rem;
+  margin-bottom: 0;
+}
+
+.sager-panel.tempest-mode .detail-item {
+  padding: 0.6rem 0.66rem;
+}
+
+.sager-panel.tempest-mode .detail-item .label {
+  font-size: 0.8rem;
+}
+
+.sager-panel.tempest-mode .detail-item .value {
+  font-size: 0.88rem;
+}
+
+@media (min-width: 1181px) {
+  .primary-panels-grid .sager-panel {
+    padding: 1.08rem 1.12rem;
+  }
+
+  .primary-panels-grid .panel-header-row {
+    gap: 0.5rem;
+    margin-bottom: 0.8rem;
+  }
+
+  .primary-panels-grid .sager-panel h3 {
+    font-size: 1.02rem;
+  }
+
+  .primary-panels-grid .forecast-toggle-btn {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.72rem;
+  }
+
+  .primary-panels-grid .zambretti-main {
+    gap: 0;
+    margin-bottom: 0.72rem;
+    padding-bottom: 0.68rem;
+  }
+
+  .primary-panels-grid .zambretti-kicker {
+    margin-bottom: 0.18rem;
+    font-size: 0.56rem;
+  }
+
+  .primary-panels-grid .forecast-inline-notice {
+    margin-bottom: 0.8rem;
+    padding: 0.62rem 0.8rem;
+    font-size: 0.78rem;
+    line-height: 1.25;
+  }
+
+  .primary-panels-grid .forecast-main {
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.9rem;
+  }
+
+  .primary-panels-grid .forecast-icon {
+    font-size: 2.7rem;
+  }
+
+  .primary-panels-grid .forecast-text {
+    font-size: 1.1rem;
+  }
+
+  .primary-panels-grid .pressure-trend {
+    margin-top: 0.2rem;
+    font-size: 0.78rem;
+  }
+
+  .primary-panels-grid .forecast-details {
+    gap: 0.58rem;
+    margin-bottom: 0.82rem;
+  }
+
+  .primary-panels-grid .forecast-details-col {
+    gap: 0.58rem;
+  }
+
+  .primary-panels-grid .detail-item {
+    padding: 0.58rem 0.66rem;
+  }
+
+  .primary-panels-grid .detail-item .label {
+    font-size: 0.74rem;
+  }
+
+  .primary-panels-grid .detail-item .value {
+    font-size: 0.84rem;
+    line-height: 1.25;
+  }
+
+  .primary-panels-grid .forecast-info-box {
+    padding: 0.72rem 0.82rem;
+    font-size: 0.76rem;
+    line-height: 1.3;
+  }
+
+  .primary-panels-grid .sager-panel.tempest-mode .panel-header-row {
+    margin-bottom: 0.68rem;
+  }
+
+  .primary-panels-grid .sager-panel.tempest-mode .forecast-main {
+    gap: 0.82rem;
+    margin-bottom: 0.72rem;
+    padding-bottom: 0.68rem;
+  }
+
+  .primary-panels-grid .sager-panel.tempest-mode .forecast-icon {
+    font-size: 2.22rem;
+  }
+
+  .primary-panels-grid .sager-panel.tempest-mode .forecast-text {
+    font-size: 1rem;
+  }
+
+  .primary-panels-grid .sager-panel.tempest-mode .pressure-trend {
+    font-size: 0.74rem;
+  }
+
+  .primary-panels-grid .sager-panel.tempest-mode .forecast-details {
+    gap: 0.48rem;
+    margin-bottom: 0;
+  }
+
+  .primary-panels-grid .sager-panel.tempest-mode .detail-item {
+    padding: 0.48rem 0.58rem;
+  }
+
+  .primary-panels-grid .sager-panel.tempest-mode .detail-item .label {
+    font-size: 0.7rem;
+  }
+
+  .primary-panels-grid .sager-panel.tempest-mode .detail-item .value {
+    font-size: 0.8rem;
+    line-height: 1.2;
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .sager-panel {
+    padding: 1.5rem;
+  }
+
+  .forecast-main {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .forecast-toggle-group {
+    justify-content: flex-start;
+  }
+
+  .forecast-icon {
+    font-size: 3rem;
+  }
+
+  .detail-item {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .detail-item .value {
+    text-align: left;
+  }
+
+  .forecast-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .forecast-details-col {
+    gap: 0.5rem;
+  }
+
+  .zambretti-info {
+    text-align: center;
+  }
+}
+
+@media (min-width: 1500px) {
+  .primary-panels-grid .forecast-icon {
+    font-size: 2.9rem;
+  }
+
+  .primary-panels-grid .forecast-text {
+    font-size: 1.16rem;
+  }
+
+  .primary-panels-grid .detail-item .value {
+    font-size: 0.88rem;
+  }
+
+  .primary-panels-grid .sager-panel.tempest-mode .forecast-icon {
+    font-size: 2.34rem;
+  }
+
+  .primary-panels-grid .sager-panel.tempest-mode .forecast-text {
+    font-size: 1.04rem;
+  }
+
+}
+
+@media (min-width: 1800px) {
+  .primary-panels-grid .forecast-main {
+    gap: 1.1rem;
+  }
+
+  .primary-panels-grid .forecast-icon {
+    font-size: 3.1rem;
+  }
+
+  .primary-panels-grid .forecast-text {
+    font-size: 1.22rem;
+  }
+
+  .primary-panels-grid .sager-panel.tempest-mode .forecast-main {
+    gap: 0.9rem;
+    margin-bottom: 0.76rem;
+    padding-bottom: 0.72rem;
+  }
+
+  .primary-panels-grid .sager-panel.tempest-mode .forecast-icon {
+    font-size: 2.44rem;
+  }
+
+  .primary-panels-grid .sager-panel.tempest-mode .forecast-text {
+    font-size: 1.08rem;
+  }
+
+  .primary-panels-grid .sager-panel.tempest-mode .detail-item {
+    padding: 0.52rem 0.6rem;
+  }
+
+}

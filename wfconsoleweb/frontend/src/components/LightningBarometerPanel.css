@@ -1,0 +1,238 @@
+.atmos-panel {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  height: 100%;
+}
+
+.atmos-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.atmos-toggle-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.lightning-bolt-indicator {
+  font-size: 1.05rem;
+  line-height: 1;
+  opacity: 0.35;
+  filter: grayscale(1) brightness(0.75);
+  transform: scale(0.95);
+  transition: opacity 0.2s ease, transform 0.2s ease, filter 0.2s ease;
+  text-shadow: 0 0 8px rgba(255, 210, 100, 0.35);
+}
+
+.lightning-bolt-indicator.active {
+  opacity: 0.85;
+  filter: grayscale(0) brightness(1.05);
+  animation: lightning-pulse 2s ease-in-out infinite;
+}
+
+.lightning-bolt-indicator.flash {
+  opacity: 1;
+  transform: scale(1.2);
+  animation: lightning-flash 0.18s ease-in-out 0s 6 alternate;
+}
+
+@keyframes lightning-pulse {
+  0%, 100% {
+    transform: scale(0.95);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes lightning-flash {
+  0% {
+    text-shadow: 0 0 6px rgba(255, 210, 100, 0.45);
+    filter: brightness(1);
+  }
+  100% {
+    text-shadow: 0 0 18px rgba(255, 236, 160, 0.95);
+    filter: brightness(1.6);
+  }
+}
+
+.atmos-toggle-btn {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--color-text);
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.atmos-toggle-btn.active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-button-text, #fff);
+}
+
+.atmos-content {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.atmos-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 0.95rem;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: var(--corner-radius);
+}
+
+.atmos-item .label {
+  opacity: 0.7;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.atmos-item .value {
+  font-weight: 600;
+  color: var(--color-accent);
+  text-align: right;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+.barometer-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-content: start;
+}
+
+.barometer-content .atmos-item:last-child {
+  grid-column: 1 / -1;
+}
+
+.lightning-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  align-content: start;
+}
+
+.lightning-content .atmos-item {
+  margin: 0;
+  min-height: 62px;
+}
+
+.lightning-content .atmos-item:last-child {
+  grid-column: 1 / -1;
+}
+
+.trend-text {
+  text-transform: capitalize;
+}
+
+@media (min-width: 1181px) {
+  .primary-panels-grid .atmos-header {
+    gap: 0.5rem;
+  }
+
+  .primary-panels-grid .atmos-toggle-btn {
+    padding: 0.25rem 0.45rem;
+    font-size: 0.68rem;
+  }
+
+  .primary-panels-grid .atmos-content {
+    margin-top: 0.65rem;
+    gap: 0.6rem;
+  }
+
+  .primary-panels-grid .atmos-item {
+    padding: 0.62rem 0.72rem;
+  }
+
+  .primary-panels-grid .atmos-item .label {
+    font-size: 0.74rem;
+  }
+
+  .primary-panels-grid .atmos-item .value {
+    font-size: 0.92rem;
+    line-height: 1.25;
+  }
+
+  .primary-panels-grid .lightning-content {
+    gap: 0.45rem;
+  }
+
+  .primary-panels-grid .lightning-content .atmos-item {
+    min-height: 52px;
+  }
+
+  .primary-panels-grid .barometer-content {
+    gap: 0.55rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .atmos-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .atmos-content {
+    overflow-y: visible;
+    padding-right: 0;
+  }
+
+  .lightning-content {
+    grid-template-columns: 1fr;
+  }
+
+  .barometer-content {
+    grid-template-columns: 1fr;
+  }
+
+  .lightning-content .atmos-item:last-child {
+    grid-column: auto;
+  }
+
+  .barometer-content .atmos-item:last-child {
+    grid-column: auto;
+  }
+
+
+@media (min-width: 1500px) {
+  .primary-panels-grid .atmos-item .value {
+    font-size: 0.96rem;
+  }
+
+  .primary-panels-grid .atmos-item {
+    padding: 0.66rem 0.76rem;
+  }
+}
+
+@media (min-width: 1800px) {
+  .primary-panels-grid .atmos-item .label {
+    font-size: 0.76rem;
+  }
+
+  .primary-panels-grid .atmos-item .value {
+    font-size: 1rem;
+  }
+}
+  .atmos-item {
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .atmos-item .value {
+    text-align: left;
+  }
+}

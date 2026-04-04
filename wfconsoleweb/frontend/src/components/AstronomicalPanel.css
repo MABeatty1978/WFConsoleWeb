@@ -1,0 +1,437 @@
+/**
+ * Astronomical panel styles
+ */
+
+.astro-panel {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  border: 1px solid var(--color-secondary);
+  border-radius: var(--corner-radius);
+  padding: 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.astro-panel:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.astro-panel h3 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.astro-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.astro-header-row h3 {
+  margin: 0;
+}
+
+.astro-toggle-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.astro-toggle-btn {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--color-text);
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.astro-toggle-btn.active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-button-text, #fff);
+}
+
+.astro-panel .loading,
+.astro-panel .error {
+  text-align: center;
+  padding: 2rem;
+  opacity: 0.6;
+}
+
+.astro-panel .error {
+  color: #f44336;
+  opacity: 1;
+}
+
+.retry-btn {
+  display: block;
+  margin: 1rem auto 0;
+  padding: 0.5rem 1rem;
+  background-color: var(--color-accent);
+  color: var(--color-button-text, #ffffff);
+  border: none;
+  border-radius: var(--corner-radius);
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.retry-btn:hover {
+  opacity: 0.8;
+  transform: translateY(-2px);
+}
+
+.astro-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex: 1;
+}
+
+.astro-section {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: var(--corner-radius);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.astro-section h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.sun-progress {
+  margin-bottom: 0.7rem;
+}
+
+.sun-bar {
+  position: relative;
+  height: 40px;
+  background: linear-gradient(90deg, #1a1a3e 0%, #ffd54f 50%, #1a1a3e 100%);
+  border-radius: var(--corner-radius);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sun-position {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.55rem;
+  z-index: 10;
+  transition: left 0.5s ease;
+}
+
+.sun-marker {
+  font-size: 0.62rem;
+  opacity: 0.5;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sun-marker-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.12rem 0.35rem 0;
+}
+
+.sun-marker.sunrise {
+  text-align: left;
+}
+
+.sun-marker.sunset {
+  text-align: right;
+}
+
+.moon-display {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  justify-content: center;
+}
+
+.moon-icon {
+  font-size: 3rem;
+  animation: rotate 20s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.moon-illumination {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.astro-data-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.58rem;
+}
+
+.astro-data-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.58rem;
+}
+
+.illumination-ring {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 3px solid var(--color-accent);
+  overflow: hidden;
+  position: relative;
+}
+
+.illumination-fill {
+  height: 100%;
+  background: linear-gradient(90deg, transparent 0%, var(--color-accent) 100%);
+  transition: width 0.3s ease;
+}
+
+.illumination-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.data-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.58rem 0.66rem;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: var(--corner-radius);
+  gap: 0.6rem;
+}
+
+.data-item .label {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+  opacity: 0.62;
+  font-weight: 600;
+  max-width: 52%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.data-item .value {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  text-align: right;
+  line-height: 1.25;
+}
+
+.astro-info {
+  background-color: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: var(--corner-radius);
+  padding: 1rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  opacity: 0.7;
+}
+
+.astro-info p {
+  margin: 0;
+}
+
+@media (min-width: 1181px) {
+  .primary-panels-grid .astro-panel {
+    padding: 1.08rem 1.12rem;
+  }
+
+  .primary-panels-grid .astro-header-row {
+    gap: 0.5rem;
+    margin-bottom: 0.8rem;
+  }
+
+  .primary-panels-grid .astro-panel h3 {
+    font-size: 1.02rem;
+  }
+
+  .primary-panels-grid .astro-toggle-btn {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.72rem;
+  }
+
+  .primary-panels-grid .astro-grid {
+    gap: 0.8rem;
+    margin-bottom: 0.82rem;
+  }
+
+  .primary-panels-grid .astro-section {
+    padding: 0.95rem;
+  }
+
+  .primary-panels-grid .astro-section h4 {
+    margin-bottom: 0.6rem;
+    font-size: 0.92rem;
+  }
+
+  .primary-panels-grid .sun-progress {
+    margin-bottom: 0.45rem;
+  }
+
+  .primary-panels-grid .moon-display {
+    margin-bottom: 0.6rem;
+  }
+
+  .primary-panels-grid .sun-bar {
+    height: 30px;
+  }
+
+  .primary-panels-grid .sun-position {
+    font-size: 1.2rem;
+  }
+
+  .primary-panels-grid .sun-marker {
+    font-size: 0.52rem;
+  }
+
+  .primary-panels-grid .moon-icon {
+    font-size: 2.3rem;
+  }
+
+  .primary-panels-grid .illumination-ring {
+    width: 50px;
+    height: 50px;
+    border-width: 2px;
+  }
+
+  .primary-panels-grid .illumination-text {
+    font-size: 0.74rem;
+  }
+
+  .primary-panels-grid .data-item {
+    padding: 0.5rem 0.58rem;
+  }
+
+  .primary-panels-grid .data-item .label {
+    font-size: 0.74rem;
+  }
+
+  .primary-panels-grid .data-item .value {
+    font-size: 0.84rem;
+  }
+
+  .primary-panels-grid .astro-info {
+    padding: 0.6rem 0.7rem;
+    font-size: 0.7rem;
+    line-height: 1.25;
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .astro-panel {
+    padding: 1.5rem;
+  }
+
+  .astro-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .astro-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .moon-display {
+    gap: 0.5rem;
+  }
+
+  .moon-icon {
+    font-size: 2rem;
+  }
+
+  .illumination-ring {
+    width: 50px;
+    height: 50px;
+  }
+
+  .data-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .data-item .value {
+    text-align: left;
+  }
+
+  .astro-data-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .astro-data-col {
+    gap: 0.5rem;
+  }
+}
+
+@media (min-width: 1500px) {
+  .primary-panels-grid .sun-bar {
+    height: 32px;
+  }
+
+  .primary-panels-grid .sun-position {
+    font-size: 1.28rem;
+  }
+
+  .primary-panels-grid .moon-icon {
+    font-size: 2.45rem;
+  }
+
+  .primary-panels-grid .data-item .value {
+    font-size: 0.88rem;
+  }
+}
+
+@media (min-width: 1800px) {
+  .primary-panels-grid .sun-bar {
+    height: 34px;
+  }
+
+  .primary-panels-grid .sun-position {
+    font-size: 1.34rem;
+  }
+
+  .primary-panels-grid .illumination-ring {
+    width: 54px;
+    height: 54px;
+  }
+
+  .primary-panels-grid .data-item .label {
+    font-size: 0.76rem;
+  }
+
+  .primary-panels-grid .data-item .value {
+    font-size: 0.92rem;
+  }
+}

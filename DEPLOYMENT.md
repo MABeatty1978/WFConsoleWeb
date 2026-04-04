@@ -21,7 +21,7 @@ install-windows.bat
 The installer deploys to `%LocalAppData%\WFConsoleWeb` and creates:
 
 - `venv\`
-- `wfpiconsole.db`
+- `wfconsoleweb.db`
 - `data\`
 - `run.bat`
 - `install.log`
@@ -49,7 +49,7 @@ python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -e .
 python scripts/setup-admin.py --username admin --password "ChangeMe123!" --reset-existing --non-interactive
-wfpiconsole-web
+wfconsoleweb
 ```
 
 ### Windows background helper
@@ -85,7 +85,7 @@ chmod +x install-linux.sh
 The installer deploys to `~/.local/opt/wfconsoleweb` and creates:
 
 - `venv/`
-- `wfpiconsole.db`
+- `wfconsoleweb.db`
 - `data/`
 - `run.sh`
 - `wfconsoleweb.service`
@@ -121,12 +121,12 @@ sudo systemctl status wfconsoleweb
 
 ## Frontend In Deployed Environments
 
-The backend serves the compiled React build from `wfpiconsole/frontend/build` when that bundle exists.
+The backend serves the compiled React build from `wfconsoleweb/frontend/build` when that bundle exists.
 
 If you modify frontend source in a checkout-based deployment, rebuild before restarting the backend:
 
 ```bash
-cd wfpiconsole/frontend
+cd wfconsoleweb/frontend
 npm install
 npm run build
 ```
@@ -153,8 +153,8 @@ Docker assets are present, but they should be treated as an advanced path and va
 
 Current repository behavior to be aware of:
 
-- the backend code serves `wfpiconsole/frontend/build`
-- the Dockerfile builds the frontend in a separate stage and places it at `wfpiconsole/frontend/build`
+- the backend code serves `wfconsoleweb/frontend/build`
+- the Dockerfile builds the frontend in a separate stage and places it at `wfconsoleweb/frontend/build`
 - the image health check targets `GET /health`
 - the Compose file uses host networking for UDP access and a named volume for SQLite persistence
 - host networking means Compose port mappings are not used
@@ -193,3 +193,4 @@ Rebuild the frontend bundle and restart the backend.
 ### App is writing data to the wrong directory
 
 Check `DATABASE_URL` and `DATA_DIR` in the startup environment or generated launcher script.
+
