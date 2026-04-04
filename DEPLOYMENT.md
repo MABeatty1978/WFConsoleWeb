@@ -15,7 +15,7 @@ This guide covers the deployment paths that match the current repository state: 
 From the repository root:
 
 ```powershell
-install-windows.bat
+.\install-windows.bat
 ```
 
 The installer deploys to `%LocalAppData%\WFConsoleWeb` and creates:
@@ -63,6 +63,21 @@ From the repository root:
 ```
 
 Runtime files are written under `.runtime\`.
+
+### Windows update utility
+
+Use the release asset installer helper:
+
+```powershell
+.\scripts\update-windows.ps1 -AssetUrl "<wheel-url>" -ExpectedVersion "0.2.0"
+```
+
+This script:
+
+- creates a DB backup under `.runtime\backups`
+- downloads the wheel to `.runtime\updates`
+- installs the wheel into the active environment
+- restarts the backend
 
 ### Windows service
 
@@ -118,6 +133,21 @@ sudo systemctl enable wfconsoleweb
 sudo systemctl start wfconsoleweb
 sudo systemctl status wfconsoleweb
 ```
+
+### Linux update utility
+
+Use the release asset installer helper:
+
+```bash
+./scripts/update-linux.sh --asset-url "<wheel-url>" --expected-version "0.2.0"
+```
+
+This script:
+
+- creates a DB backup under `.runtime/backups`
+- downloads the wheel to `.runtime/updates`
+- installs the wheel into the active environment
+- restarts `wfconsoleweb` service when present, otherwise restarts the backend process
 
 ## Frontend In Deployed Environments
 

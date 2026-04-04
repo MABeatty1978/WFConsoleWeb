@@ -21,10 +21,10 @@ setup(
     description="Web interface for the Tempest weather station by WeatherFlow",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/WFConsoleWeb",
+    url="https://github.com/michaelbeatty9142002/WFConsoleWeb",
     project_urls={
-        "Bug Tracker": "https://github.com/yourusername/WFConsoleWeb/issues",
-        "Source Code": "https://github.com/yourusername/WFConsoleWeb",
+        "Bug Tracker": "https://github.com/michaelbeatty9142002/WFConsoleWeb/issues",
+        "Source Code": "https://github.com/michaelbeatty9142002/WFConsoleWeb",
     },
     packages=find_packages(),
     classifiers=[

@@ -80,7 +80,7 @@ REM Install dependencies
 echo.
 echo [*] Installing WFConsoleWeb...
 cd /d "%SCRIPT_DIR%"
-pip install -e . 2>&1 >> "%LOG_FILE%"
+pip install . 2>&1 >> "%LOG_FILE%"
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to install WFConsoleWeb
     echo See %LOG_FILE% for details
@@ -173,7 +173,7 @@ set "STARTUP_SCRIPT=%INSTALL_DIR%\run.bat"
     echo set "DATABASE_URL=%INSTALL_DB_URL%"
     echo set "DATA_DIR=%INSTALL_DATA_DIR%"
     echo call "%INSTALL_DIR%\venv\Scripts\activate.bat"
-    echo wfconsoleweb-web
+    echo wfconsoleweb
     echo pause
 ) > "!STARTUP_SCRIPT!"
 echo [OK] Startup script created at !STARTUP_SCRIPT!

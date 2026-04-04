@@ -35,9 +35,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/WFConsoleWeb"
-"Bug Tracker" = "https://github.com/yourusername/WFConsoleWeb/issues"
-"Source Code" = "https://github.com/yourusername/WFConsoleWeb"
+Homepage = "https://github.com/michaelbeatty9142002/WFConsoleWeb"
+"Bug Tracker" = "https://github.com/michaelbeatty9142002/WFConsoleWeb/issues"
+"Source Code" = "https://github.com/michaelbeatty9142002/WFConsoleWeb"
 
 [project.scripts]
 wfconsoleweb = "wfconsoleweb.backend.main:main"

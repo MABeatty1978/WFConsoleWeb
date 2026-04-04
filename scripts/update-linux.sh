@@ -66,13 +66,12 @@ restart_backend() {
     fi
   fi
 
-  if [[ -x "${SCRIPT_DIR}/manage-backend.sh" ]]; then
-    "${SCRIPT_DIR}/manage-backend.sh" restart || true
-    return 0
-  fi
-
   pkill -f "wfconsoleweb.backend.main" || true
-  nohup python -m wfconsoleweb.backend.main >/dev/null 2>&1 &
+  if [[ -x "${REPO_ROOT}/venv/bin/python" ]]; then
+    nohup "${REPO_ROOT}/venv/bin/python" -m wfconsoleweb.backend.main >/dev/null 2>&1 &
+  else
+    nohup python3 -m wfconsoleweb.backend.main >/dev/null 2>&1 &
+  fi
 }
 
 main() {
@@ -99,12 +98,12 @@ main() {
   local asset_path="${UPDATE_DIR}/${file_name}"
   curl -L --fail "${ASSET_URL}" -o "${asset_path}"
 
-  if [[ -x "${SCRIPT_DIR}/manage-backend.sh" ]]; then
-    "${SCRIPT_DIR}/manage-backend.sh" stop || true
-  elif command -v systemctl >/dev/null 2>&1; then
+  if command -v systemctl >/dev/null 2>&1; then
     if systemctl list-unit-files | grep -q "wfconsoleweb"; then
       sudo systemctl stop wfconsoleweb || true
     fi
+  else
+    pkill -f "wfconsoleweb.backend.main" || true
   fi
 
   if [[ -x "${REPO_ROOT}/venv/bin/python" ]]; then

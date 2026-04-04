@@ -107,7 +107,7 @@ pip install --upgrade pip setuptools wheel 2>&1 | tail -n 1
 # Install WFConsoleWeb
 log_info "Installing WFConsoleWeb and dependencies..."
 cd "${SCRIPT_DIR}"
-pip install -e . 2>&1 | grep -E "Successfully|ERROR" || true
+pip install . 2>&1 | grep -E "Successfully|ERROR" || true
 
 log_ok "WFConsoleWeb installed successfully"
 

@@ -1,6 +1,6 @@
 [Unit]
 Description=WFConsoleWeb - Weather Station Web Interface
-Documentation=https://github.com/yourusername/WFConsoleWeb
+Documentation=https://github.com/michaelbeatty9142002/WFConsoleWeb
 After=network-online.target
 Wants=network-online.target
 
@@ -15,7 +15,7 @@ EnvironmentFile=/opt/wfconsoleweb/.env
 Environment="PATH=/opt/wfconsoleweb/venv/bin"
 
 # Start command - uses virtual environment
-ExecStart=/opt/wfconsoleweb/venv/bin/python -m wfpiconsole.backend.main
+ExecStart=/opt/wfconsoleweb/venv/bin/python -m wfconsoleweb.backend.main
 
 # Restart policy
 Restart=on-failure

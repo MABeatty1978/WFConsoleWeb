@@ -52,7 +52,7 @@ WFConsoleWeb/
 Run the installer from the repository root:
 
 ```powershell
-install-windows.bat
+.\install-windows.bat
 ```
 
 The installer:
@@ -248,7 +248,50 @@ WFConsoleWeb supports three forecast overlays in the Forecast panel:
 Zambretti implementation note:
 
 - The Zambretti calculation approach in this project is based on and adapted from the SAS Communities reference repository: https://github.com/sascommunities/iot-zambretti-weather-forcasting
-- The app applies that method to locally collected station observations and renders the result in an animated dial view in the Forecast panel.
+- The app applies that method to locally collected station observations and renders the result as forecast text with supporting pressure/trend metrics in the Forecast panel.
+
+## Scripts, Tools, And Utilities
+
+The repository includes these helper scripts and utilities:
+
+- `scripts/setup-admin.py`
+	- Purpose: create or replace the single admin account.
+	- Common use:
+		- `python scripts/setup-admin.py --username admin --password "ChangeMe123!" --reset-existing --non-interactive`
+
+- `scripts/manage-backend.ps1`
+	- Purpose: start/stop/restart/status for backend on Windows with PID/log files.
+	- Common use:
+		- `.\scripts\manage-backend.ps1 start`
+		- `.\scripts\manage-backend.ps1 status`
+		- `.\scripts\manage-backend.ps1 stop`
+
+- `scripts/manage-backend.bat`
+	- Purpose: batch wrapper around `manage-backend.ps1`.
+	- Common use:
+		- `.\scripts\manage-backend.bat restart`
+
+- `scripts/update-windows.ps1`
+	- Purpose: download and install a wheel asset, back up DB, restart backend.
+	- Common use:
+		- `.\scripts\update-windows.ps1 -AssetUrl "<wheel-url>" -ExpectedVersion "0.2.0"`
+
+- `scripts/update-linux.sh`
+	- Purpose: download and install a wheel asset, back up DB, restart backend/service.
+	- Common use:
+		- `./scripts/update-linux.sh --asset-url "<wheel-url>" --expected-version "0.2.0"`
+
+- `build.py`
+	- Purpose: local packaging helper that builds frontend and Python distribution artifacts.
+	- Common use:
+		- `python build.py`
+
+## Installation Notes
+
+- Installers now use non-editable package installation (`pip install .`) for a more stable end-user setup.
+- Windows installer creates `%LocalAppData%\WFConsoleWeb\run.bat` and desktop shortcut.
+- Linux installer creates `~/.local/opt/wfconsoleweb/run.sh` and a `wfconsoleweb.service` file template.
+- If installing manually from a checkout and you are actively developing code, use editable install (`pip install -e .`) instead.
 
 ## Docker
 
