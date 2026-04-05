@@ -344,6 +344,11 @@ export default function SagerForecastPanel() {
         </div>
 
         <div className="detail-item">
+          <span className="label">Pressure Samples Used</span>
+          <span className="value">{forecast.pressureSampleCount}</span>
+        </div>
+
+        <div className="detail-item">
           <span className="label">Last Updated</span>
           <span className="value">
             {formatLocalDateTime(forecast.localTime * 1000)}

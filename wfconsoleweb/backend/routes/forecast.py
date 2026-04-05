@@ -129,58 +129,55 @@ async def get_sager_forecast(
     for the next 12-24 hours.
     """
     try:
-        # Get latest observation for pressure trend calculation
+        # Pull recent observations that actually have sea level pressure so
+        # sparse/null packets do not starve Sager history.
         from wfconsoleweb.config.models import ObservationHistory
         from sqlalchemy import select, desc
-        
+        sager = SagerWeatherForecast(latitude=0)
+
         result = db.execute(
             select(ObservationHistory)
+            .where(ObservationHistory.sea_level_pressure.is_not(None))
             .order_by(desc(ObservationHistory.timestamp))
-            .limit(24)
+            .limit(sager.max_history)
         )
-        observations = result.scalars().all()
-        
-        if not observations:
+        observations_with_pressure = result.scalars().all()
+
+        if not observations_with_pressure:
             return {
                 "forecastCode": 10,
                 "forecastText": "Insufficient data for forecast",
                 "seaLevelPressureTrend": "Unknown",
                 "localTime": 0,
+                "pressureSampleCount": 0,
             }
-        
-        # Calculate Sager forecast based on pressure trend
-        pressures = [obs.sea_level_pressure for obs in reversed(observations) if obs.sea_level_pressure is not None]
 
-        if len(pressures) < 4:
-            latest_with_pressure = next((obs for obs in observations if obs.sea_level_pressure is not None), None)
-            if latest_with_pressure is not None:
-                return {
-                    "forecastCode": 4,
-                    "forecastText": "Steady pressure (limited recent history)",
-                    "seaLevelPressureTrend": "steady",
-                    "localTime": _to_epoch_seconds(latest_with_pressure.timestamp),
-                }
+        ordered_observations = list(reversed(observations_with_pressure))
+
+        if len(ordered_observations) < 4:
+            sample_count = len(ordered_observations)
             return {
-                "forecastCode": 10,
-                "forecastText": "Insufficient data for forecast",
-                "seaLevelPressureTrend": "Unknown",
-                "localTime": _to_epoch_seconds(observations[0].timestamp) if observations else 0,
+                "forecastCode": 4,
+                "forecastText": f"Steady pressure (limited recent history: {sample_count} samples)",
+                "seaLevelPressureTrend": "steady",
+                "localTime": _to_epoch_seconds(ordered_observations[-1].timestamp),
+                "pressureSampleCount": sample_count,
             }
 
-        sager = SagerWeatherForecast(latitude=0)
         forecast = None
-        ordered_observations = [obs for obs in reversed(observations) if obs.sea_level_pressure is not None]
         for obs in ordered_observations:
             forecast = sager.add_observation(obs.sea_level_pressure, obs.timestamp)
 
         if forecast is None:
+            sample_count = len(ordered_observations)
             return {
-                "forecastCode": 10,
-                "forecastText": "Insufficient data for forecast",
-                "seaLevelPressureTrend": "Unknown",
-                "localTime": _to_epoch_seconds(ordered_observations[-1].timestamp) if ordered_observations else 0,
+                "forecastCode": 4,
+                "forecastText": f"Steady pressure (limited recent history: {sample_count} samples)",
+                "seaLevelPressureTrend": "steady",
+                "localTime": _to_epoch_seconds(ordered_observations[-1].timestamp),
+                "pressureSampleCount": sample_count,
             }
-        
+
         latest = ordered_observations[-1]
 
         trend_lookup = {
@@ -194,6 +191,7 @@ async def get_sager_forecast(
             "forecastText": forecast.forecast_text,
             "seaLevelPressureTrend": forecast.pressure_trend or "Unknown",
             "localTime": _to_epoch_seconds(latest.timestamp),
+            "pressureSampleCount": len(ordered_observations),
         }
     except Exception as e:
         return {
@@ -202,6 +200,7 @@ async def get_sager_forecast(
             "forecastText": "Error calculating forecast",
             "seaLevelPressureTrend": "Unknown",
             "localTime": 0,
+            "pressureSampleCount": 0,
         }
 
 

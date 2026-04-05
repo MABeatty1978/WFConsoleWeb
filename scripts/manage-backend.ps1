@@ -18,6 +18,11 @@ if (-not (Test-Path $RuntimeDir)) {
 }
 
 function Get-PythonExecutable {
+    $dotVenvPython = Join-Path $RepoRoot ".venv\Scripts\python.exe"
+    if (Test-Path $dotVenvPython) {
+        return $dotVenvPython
+    }
+
     $venvPython = Join-Path $RepoRoot "venv\Scripts\python.exe"
     if (Test-Path $venvPython) {
         return $venvPython

@@ -17,6 +17,7 @@ export interface SagerForecast {
   localTime: number;
   forecastText: string;
   forecastCode: number;
+  pressureSampleCount: number;
 }
 
 export type TempestForecast = TempestForecastResponse;

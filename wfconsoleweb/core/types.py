@@ -158,6 +158,14 @@ class SagerForecast:
     """Sager barometric forecast"""
     timestamp: datetime
     forecast_text: str
-    confidence: str = "medium"  # high, medium, low
+    confidence: float = 0.0
+    pressure_trend: Optional[str] = None  # rising, steady, falling
+    pressure_change_rate_mb_per_hour: Optional[float] = None
+
+    # Backward-compatible aliases for older callers.
     trend: Optional[str] = None  # rising, stable, falling
     trend_speed: Optional[str] = None  # rapid, moderate, slow
+
+    def __post_init__(self):
+        if self.trend is None and self.pressure_trend is not None:
+            self.trend = self.pressure_trend

@@ -2,26 +2,59 @@
  * Astronomical data panel component
  */
 
-import { useMemo } from "react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAstronomicalData } from "../hooks/useAdvanced";
 import { formatLocalTime } from "../utils/dateTime";
 import "./AstronomicalPanel.css";
 
 export default function AstronomicalPanel() {
   const { data, loading, error, refetch } = useAstronomicalData();
-  const [activeMode, setActiveMode] = useState<"solar" | "lunar">("solar");
+  const [activeMode, setActiveMode] = useState<"solar" | "lunar" | null>(null);
+  const [hasUserSelectedMode, setHasUserSelectedMode] = useState(false);
+  const [nowEpochSeconds, setNowEpochSeconds] = useState(() => Math.floor(Date.now() / 1000));
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNowEpochSeconds(Math.floor(Date.now() / 1000));
+    }, 60000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const defaultMode = useMemo<"solar" | "lunar">(() => {
+    if (!data) return "solar";
+
+    const { sunriseTime, sunsetTime } = data;
+    if (!sunriseTime || !sunsetTime || sunriseTime >= sunsetTime) {
+      return "solar";
+    }
+
+    return nowEpochSeconds >= sunriseTime && nowEpochSeconds < sunsetTime ? "solar" : "lunar";
+  }, [data, nowEpochSeconds]);
+
+  useEffect(() => {
+    if (!hasUserSelectedMode) {
+      setActiveMode(defaultMode);
+    }
+  }, [defaultMode, hasUserSelectedMode]);
+
+  const resolvedMode = activeMode ?? defaultMode;
+
+  const selectMode = (mode: "solar" | "lunar") => {
+    setHasUserSelectedMode(true);
+    setActiveMode(mode);
+  };
 
   const sunProgress = useMemo(() => {
     if (!data) return 0;
 
-    const now = Date.now() / 1000;
+    const now = nowEpochSeconds;
     const sunrise = data.sunriseTime;
     const sunset = data.sunsetTime;
 
     if (now < sunrise || now > sunset) return -1; // Night time
     return ((now - sunrise) / (sunset - sunrise)) * 100;
-  }, [data]);
+  }, [data, nowEpochSeconds]);
 
   const moonPhaseEmoji = useMemo(() => {
     if (!data) return "🌙";
@@ -43,8 +76,8 @@ export default function AstronomicalPanel() {
         <div className="astro-header-row">
           <h3>Astronomical Data</h3>
           <div className="astro-toggle-group">
-            <button className={`astro-toggle-btn ${activeMode === "solar" ? "active" : ""}`} onClick={() => setActiveMode("solar")}>Solar</button>
-            <button className={`astro-toggle-btn ${activeMode === "lunar" ? "active" : ""}`} onClick={() => setActiveMode("lunar")}>Lunar</button>
+            <button className={`astro-toggle-btn ${resolvedMode === "solar" ? "active" : ""}`} onClick={() => selectMode("solar")}>Solar</button>
+            <button className={`astro-toggle-btn ${resolvedMode === "lunar" ? "active" : ""}`} onClick={() => selectMode("lunar")}>Lunar</button>
           </div>
         </div>
         <div className="loading">Loading astronomical data...</div>
@@ -58,8 +91,8 @@ export default function AstronomicalPanel() {
         <div className="astro-header-row">
           <h3>Astronomical Data</h3>
           <div className="astro-toggle-group">
-            <button className={`astro-toggle-btn ${activeMode === "solar" ? "active" : ""}`} onClick={() => setActiveMode("solar")}>Solar</button>
-            <button className={`astro-toggle-btn ${activeMode === "lunar" ? "active" : ""}`} onClick={() => setActiveMode("lunar")}>Lunar</button>
+            <button className={`astro-toggle-btn ${resolvedMode === "solar" ? "active" : ""}`} onClick={() => selectMode("solar")}>Solar</button>
+            <button className={`astro-toggle-btn ${resolvedMode === "lunar" ? "active" : ""}`} onClick={() => selectMode("lunar")}>Lunar</button>
           </div>
         </div>
         <div className="error">{error || "No astronomical data available"}</div>
@@ -81,14 +114,14 @@ export default function AstronomicalPanel() {
         <h3>Astronomical Data</h3>
         <div className="astro-toggle-group">
           <button
-            className={`astro-toggle-btn ${activeMode === "solar" ? "active" : ""}`}
-            onClick={() => setActiveMode("solar")}
+            className={`astro-toggle-btn ${resolvedMode === "solar" ? "active" : ""}`}
+            onClick={() => selectMode("solar")}
           >
             Solar
           </button>
           <button
-            className={`astro-toggle-btn ${activeMode === "lunar" ? "active" : ""}`}
-            onClick={() => setActiveMode("lunar")}
+            className={`astro-toggle-btn ${resolvedMode === "lunar" ? "active" : ""}`}
+            onClick={() => selectMode("lunar")}
           >
             Lunar
           </button>
@@ -97,7 +130,7 @@ export default function AstronomicalPanel() {
 
       <div className="astro-grid">
         <div className="astro-section">
-          {activeMode === "solar" ? (
+          {resolvedMode === "solar" ? (
             <>
               <h4>☀️ Solar Data</h4>
 

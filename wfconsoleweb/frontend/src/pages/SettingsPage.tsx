@@ -55,6 +55,14 @@ export default function SettingsPage() {
   const [updateInfo, setUpdateInfo] = useState<Record<string, unknown> | null>(null);
   const [checkingUpdates, setCheckingUpdates] = useState(false);
   const [installingUpdate, setInstallingUpdate] = useState(false);
+  const [serverStatusLoading, setServerStatusLoading] = useState(false);
+  const [serverRestarting, setServerRestarting] = useState(false);
+  const [autostartEnabled, setAutostartEnabled] = useState(false);
+  const [autostartSupported, setAutostartSupported] = useState(true);
+  const [autostartUpdating, setAutostartUpdating] = useState(false);
+  const [autostartPlatform, setAutostartPlatform] = useState("unknown");
+  const [autostartStatusMessage, setAutostartStatusMessage] = useState("");
+  const [autostartStatusError, setAutostartStatusError] = useState("");
 
   const showMessage = (type: "success" | "error", text: string) => {
     setMessage({ type, text });
@@ -118,8 +126,37 @@ export default function SettingsPage() {
       }
     };
 
+    const loadServerStatus = async () => {
+      try {
+        setServerStatusLoading(true);
+        const response = await apiClient.getServerAutostartStatus();
+        if (!isMounted) {
+          return;
+        }
+
+        setAutostartEnabled(Boolean(response.enabled));
+        setAutostartSupported(Boolean(response.supported ?? true));
+        setAutostartPlatform(String(response.platform ?? "unknown"));
+        setAutostartStatusMessage(String(response.message ?? ""));
+        setAutostartStatusError(String(response.error ?? ""));
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+        setAutostartSupported(false);
+        setAutostartStatusMessage("");
+        setAutostartStatusError("Failed to load server autostart status.");
+        showMessage("error", "Failed to load server autostart status.");
+      } finally {
+        if (isMounted) {
+          setServerStatusLoading(false);
+        }
+      }
+    };
+
     loadStationConfig();
     loadApiKeyStatus();
+    loadServerStatus();
 
     return () => {
       isMounted = false;
@@ -365,6 +402,71 @@ export default function SettingsPage() {
       showMessage("error", "Failed to schedule update download/install.");
     } finally {
       setInstallingUpdate(false);
+    }
+  };
+
+  const handleRestartServer = async () => {
+    try {
+      setServerRestarting(true);
+      const response = await apiClient.restartServer();
+      showMessage("success", String(response.message ?? "Server restart scheduled."));
+    } catch {
+      showMessage("error", "Failed to schedule server restart.");
+    } finally {
+      setServerRestarting(false);
+    }
+  };
+
+  const refreshServerStatus = async (showToast = false) => {
+    try {
+      setServerStatusLoading(true);
+      const response = await apiClient.getServerAutostartStatus();
+      setAutostartEnabled(Boolean(response.enabled));
+      setAutostartSupported(Boolean(response.supported ?? true));
+      setAutostartPlatform(String(response.platform ?? "unknown"));
+      setAutostartStatusMessage(String(response.message ?? ""));
+      setAutostartStatusError(String(response.error ?? ""));
+      if (showToast) {
+        showMessage("success", "Server status refreshed.");
+      }
+    } catch {
+      setAutostartSupported(false);
+      setAutostartStatusMessage("");
+      setAutostartStatusError("Failed to load server autostart status.");
+      showMessage("error", "Failed to load server autostart status.");
+    } finally {
+      setServerStatusLoading(false);
+    }
+  };
+
+  const handleAutostartToggle = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const enabled = event.target.checked;
+    const previous = autostartEnabled;
+    setAutostartEnabled(enabled);
+
+    try {
+      setAutostartUpdating(true);
+      const response = await apiClient.setServerAutostart(enabled);
+      const resolvedEnabled = Boolean(response.enabled);
+      setAutostartEnabled(resolvedEnabled);
+      setAutostartPlatform(String(response.platform ?? autostartPlatform));
+      setAutostartSupported(Boolean(response.supported ?? true));
+      setAutostartStatusMessage(String(response.message ?? ""));
+      setAutostartStatusError(String(response.error ?? ""));
+      showMessage(
+        "success",
+        String(
+          response.message ??
+          (resolvedEnabled ? "Server autostart enabled." : "Server autostart disabled.")
+        )
+      );
+    } catch (error) {
+      setAutostartEnabled(previous);
+      const detail = error instanceof Error ? error.message : "Failed to update server autostart setting.";
+      setAutostartStatusError(detail);
+      showMessage("error", detail);
+    } finally {
+      setAutostartUpdating(false);
     }
   };
 
@@ -797,6 +899,73 @@ export default function SettingsPage() {
                     )}
                   </div>
                 )}
+              </div>
+            )}
+          </section>
+        )}
+
+        {isAdmin && (
+          <section className="settings-section">
+            <div className="section-header" onClick={() => toggleTab("server") }>
+              <h2>Server</h2>
+              <span className={`toggle ${activeTabs.has("server") ? "open" : ""}`}>
+                ▼
+              </span>
+            </div>
+
+            {activeTabs.has("server") && (
+              <div className="section-content">
+                <p className="section-copy">
+                  Manage server lifecycle and startup behavior.
+                </p>
+
+                <div className="form-actions" style={{ marginBottom: "1rem" }}>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={handleRestartServer}
+                    disabled={serverRestarting}
+                  >
+                    {serverRestarting ? "Scheduling Restart..." : "Restart Server"}
+                  </button>
+                </div>
+
+                <div className="settings-group">
+                  <label className="checkbox-option">
+                    <input
+                      type="checkbox"
+                      checked={autostartEnabled}
+                      onChange={handleAutostartToggle}
+                      disabled={serverStatusLoading || autostartUpdating || !autostartSupported}
+                    />
+                    Start server automatically when this computer reboots
+                  </label>
+                  <p className="helper-text">
+                    Status: {autostartEnabled ? "Enabled" : "Disabled"} · Platform: {autostartPlatform}
+                  </p>
+                  {autostartStatusMessage && (
+                    <p className="helper-text">{autostartStatusMessage}</p>
+                  )}
+                  {autostartStatusError && (
+                    <p className="helper-text server-error">{autostartStatusError}</p>
+                  )}
+                  {!autostartSupported && (
+                    <p className="helper-text">Autostart management is not available on this system.</p>
+                  )}
+                  {serverStatusLoading && (
+                    <p className="helper-text">Loading current autostart setting...</p>
+                  )}
+                  <div className="form-actions">
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={() => refreshServerStatus(true)}
+                      disabled={serverStatusLoading || autostartUpdating}
+                    >
+                      {serverStatusLoading ? "Refreshing..." : "Refresh Status"}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </section>

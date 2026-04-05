@@ -4,6 +4,7 @@ import os
 import platform
 import subprocess
 import httpx
+import json
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import List, Optional
@@ -79,6 +80,92 @@ class UpdateCheckResponse(BaseModel):
     wheel_asset_name: Optional[str] = None
     wheel_asset_url: Optional[str] = None
     error: Optional[str] = None
+
+
+class ServerAutostartRequest(BaseModel):
+    """Server autostart configuration request."""
+
+    enabled: bool
+
+
+class ServerAutostartResponse(BaseModel):
+    """Server autostart status response."""
+
+    enabled: bool
+    supported: bool
+    platform: str
+    message: str
+    error: Optional[str] = None
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
+def _run_autostart_action(action: str) -> dict:
+    repo_root = _repo_root()
+
+    if os.name == "nt":
+        script_path = repo_root / "scripts" / "server-autostart-windows.ps1"
+        cmd = [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(script_path),
+            "-Action",
+            action,
+        ]
+    else:
+        script_path = repo_root / "scripts" / "server-autostart-linux.sh"
+        cmd = [
+            "bash",
+            str(script_path),
+            "--action",
+            action,
+        ]
+
+    if not script_path.exists():
+        return {
+            "enabled": False,
+            "supported": False,
+            "platform": "windows" if os.name == "nt" else "linux",
+            "message": "Autostart script not found.",
+            "error": str(script_path),
+        }
+
+    result = subprocess.run(
+        cmd,
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    stdout = (result.stdout or "").strip()
+    stderr = (result.stderr or "").strip()
+
+    payload = {
+        "enabled": False,
+        "supported": True,
+        "platform": "windows" if os.name == "nt" else "linux",
+        "message": "Autostart operation completed.",
+    }
+
+    if stdout:
+        try:
+            parsed = json.loads(stdout)
+            if isinstance(parsed, dict):
+                payload.update(parsed)
+        except json.JSONDecodeError:
+            payload["message"] = stdout
+
+    if result.returncode != 0:
+        payload["error"] = payload.get("error") or stderr or "Autostart script failed"
+
+    return payload
 
 
 # System endpoints
@@ -206,13 +293,122 @@ async def restart_service(current_user: AdminUser = Depends(get_admin_user)):
 
     Note: In production, this would be handled by systemd/supervisor.
     """
-    logger.warning(f"Restart requested by {current_user.username}")
+    logger.warning("Restart requested by %s", current_user.username)
+
+    repo_root = _repo_root()
+
+    if os.name == "nt":
+        restart_script = repo_root / "scripts" / "restart-backend-windows.ps1"
+        if not restart_script.exists():
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Restart script not found",
+            )
+
+        cmd = [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(restart_script),
+        ]
+
+        creation_flags = 0
+        if hasattr(subprocess, "DETACHED_PROCESS"):
+            creation_flags |= subprocess.DETACHED_PROCESS
+        if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
+            creation_flags |= subprocess.CREATE_NEW_PROCESS_GROUP
+
+        subprocess.Popen(
+            cmd,
+            cwd=str(repo_root),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=creation_flags,
+        )
+    else:
+        restart_script = repo_root / "scripts" / "restart-backend-linux.sh"
+        if not restart_script.exists():
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Restart script not found",
+            )
+
+        subprocess.Popen(
+            ["bash", str(restart_script)],
+            cwd=str(repo_root),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
 
     return {
         "status": "scheduled",
-        "message": "Application restart scheduled in 5 seconds",
+        "message": "Backend restart scheduled.",
         "requested_by": current_user.username,
         "timestamp": datetime.utcnow().isoformat(),
+    }
+
+
+@router.get("/server/autostart", response_model=ServerAutostartResponse)
+async def get_server_autostart_status(current_user: AdminUser = Depends(get_admin_user)):
+    """Get backend autostart setting for the current host."""
+    _ = current_user
+    payload = _run_autostart_action("status")
+    return {
+        "enabled": bool(payload.get("enabled", False)),
+        "supported": bool(payload.get("supported", True)),
+        "platform": str(payload.get("platform", platform.system().lower())),
+        "message": str(payload.get("message", "Autostart status retrieved.")),
+        "error": str(payload.get("error")) if payload.get("error") else None,
+    }
+
+
+@router.post("/server/autostart", response_model=ServerAutostartResponse)
+async def set_server_autostart(
+    request: ServerAutostartRequest,
+    current_user: AdminUser = Depends(get_admin_user),
+):
+    """Enable or disable backend autostart at machine startup."""
+    action = "enable" if request.enabled else "disable"
+    payload = _run_autostart_action(action)
+
+    logger.info(
+        "Server autostart %s requested by %s (enabled=%s, error=%s)",
+        action,
+        current_user.username,
+        payload.get("enabled", False),
+        payload.get("error"),
+    )
+
+    if payload.get("error") and not payload.get("enabled", False) and request.enabled:
+        error_msg = str(payload.get("error", ""))
+        # Detect permission errors and provide helpful guidance
+        if "access is denied" in error_msg.lower() or "denied" in error_msg.lower():
+            repo_root = _repo_root()
+            # Use forward slashes which PowerShell understands on any system
+            repo_path_str = str(repo_root).replace("\\", "/")
+            detail = (
+                "Administrator privileges required to enable autostart. "
+                "Please close WFConsoleWeb, right-click on PowerShell, select 'Run as Administrator', "
+                f"then run: cd {repo_path_str}; ./.venv/Scripts/Activate.ps1; "
+                "python -m uvicorn wfconsoleweb.backend.main:app --host 0.0.0.0 --port 8000 "
+                "Then retry enabling autostart in Settings > Server."
+            )
+        else:
+            detail = error_msg
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=detail,
+        )
+
+    return {
+        "enabled": bool(payload.get("enabled", False)),
+        "supported": bool(payload.get("supported", True)),
+        "platform": str(payload.get("platform", platform.system().lower())),
+        "message": str(payload.get("message", "Autostart updated.")),
+        "error": str(payload.get("error")) if payload.get("error") else None,
     }
 
 

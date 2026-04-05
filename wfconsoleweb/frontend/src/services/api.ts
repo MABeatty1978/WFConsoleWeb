@@ -98,11 +98,21 @@ class ApiClient {
     const response = await fetch(url, options);
 
     if (!response.ok) {
+      let errorDetail = `${response.status} ${response.statusText}`;
+      try {
+        const errorBody = await response.json();
+        if (errorBody.detail) {
+          errorDetail = errorBody.detail;
+        }
+      } catch {
+        // If response isn't JSON, use default error message
+      }
+
       if (response.status === 401) {
         this.clearToken();
         throw new Error("Unauthorized - please log in again");
       }
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      throw new Error(`API Error: ${errorDetail}`);
     }
 
     return response.json() as Promise<T>;
@@ -372,6 +382,18 @@ class ApiClient {
 
   async getActiveAlerts(): Promise<Record<string, unknown>> {
     return this.request<Record<string, unknown>>("GET", "/system/alerts");
+  }
+
+  async restartServer(): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>("POST", "/system/restart");
+  }
+
+  async getServerAutostartStatus(): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>("GET", "/system/server/autostart");
+  }
+
+  async setServerAutostart(enabled: boolean): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>("POST", "/system/server/autostart", { enabled });
   }
 
   // Forecast endpoints
