@@ -392,8 +392,7 @@ async def set_server_autostart(
             detail = (
                 "Administrator privileges required to enable autostart. "
                 "Please close WFConsoleWeb, right-click on PowerShell, select 'Run as Administrator', "
-                f"then run: cd {repo_path_str}; ./.venv/Scripts/Activate.ps1; "
-                "python -m uvicorn wfconsoleweb.backend.main:app --host 0.0.0.0 --port 8000 "
+                f"then run: powershell -NoProfile -ExecutionPolicy Bypass -File \"{repo_path_str}/scripts/start-admin.ps1\" "
                 "Then retry enabling autostart in Settings > Server."
             )
         else:

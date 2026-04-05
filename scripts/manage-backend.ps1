@@ -36,6 +36,15 @@ function Get-PythonExecutable {
     throw "Python executable not found. Create the project venv or add Python to PATH."
 }
 
+function Get-PythonWindowlessExecutable {
+    $pythonExe = Get-PythonExecutable
+    $pythonwExe = Join-Path (Split-Path -Parent $pythonExe) "pythonw.exe"
+    if (Test-Path $pythonwExe) {
+        return $pythonwExe
+    }
+    return $pythonExe
+}
+
 function Get-BackendProcessFromPidFile {
     if (-not (Test-Path $PidFile)) {
         return $null
@@ -97,7 +106,7 @@ function Start-Backend {
         return
     }
 
-    $pythonExe = Get-PythonExecutable
+    $pythonExe = Get-PythonWindowlessExecutable
     Write-Host "Starting backend using $pythonExe"
 
     $startArgs = @{
@@ -106,6 +115,7 @@ function Start-Backend {
         WorkingDirectory = $RepoRoot
         RedirectStandardOutput = $LogFile
         RedirectStandardError = $ErrFile
+        WindowStyle = "Hidden"
         PassThru = $true
     }
     $proc = Start-Process @startArgs
