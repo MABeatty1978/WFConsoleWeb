@@ -11,6 +11,21 @@ DEFAULT_DATABASE_URL = f"sqlite:///{(PROJECT_ROOT / 'wfconsoleweb.db').as_posix(
 DEFAULT_DATA_DIR = PROJECT_ROOT / "data"
 
 
+def _parse_cors_origins() -> list[str]:
+    configured_origins = os.getenv("CORS_ORIGINS", "")
+    if configured_origins.strip():
+        return [origin.strip() for origin in configured_origins.split(",") if origin.strip()]
+
+    return [
+        "http://localhost",
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000",
+    ]
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables or .env file"""
 
@@ -58,12 +73,11 @@ class Settings(BaseSettings):
     api_timeout_seconds: int = 30
 
     # CORS Configuration
-    cors_origins: list = [
-        "http://localhost",
-        "http://localhost:3000",
-        "http://localhost:8000",
-        "http://127.0.0.1",
-    ]
+    cors_origins: list[str] = _parse_cors_origins()
+    cors_origin_regex: str = os.getenv(
+        "CORS_ORIGIN_REGEX",
+        r"^https?://(localhost|127\.0\.0\.1|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?::\d+)?$",
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

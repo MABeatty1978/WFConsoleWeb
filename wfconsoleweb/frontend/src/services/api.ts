@@ -17,7 +17,20 @@ import {
   TempestForecastResponse,
 } from "../types";
 
-const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:8000/api";
+function resolveApiBase(): string {
+  const configuredBase = process.env.REACT_APP_API_URL?.trim();
+  if (configuredBase) {
+    return configuredBase.replace(/\/$/, "");
+  }
+
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return `${window.location.origin}/api`;
+  }
+
+  return "/api";
+}
+
+const API_BASE = resolveApiBase();
 
 class ApiClient {
   private token: string | null = null;

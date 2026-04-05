@@ -7,6 +7,20 @@ import { Observation } from "../types";
 type MessageHandler = (data: unknown) => void;
 type ObservationHandler = (obs: Observation) => void;
 
+function resolveWebSocketUrl(): string {
+  const configuredBase = process.env.REACT_APP_WS_URL?.trim();
+  if (configuredBase) {
+    return `${configuredBase.replace(/\/$/, "")}/ws/observations`;
+  }
+
+  if (typeof window !== "undefined" && window.location) {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${window.location.host}/ws/observations`;
+  }
+
+  return "/ws/observations";
+}
+
 export class WebSocketService {
   private ws: WebSocket | null = null;
   private url: string;
@@ -22,7 +36,7 @@ export class WebSocketService {
   private heartbeatTimeout: NodeJS.Timeout | null = null;
 
   constructor(url?: string) {
-    this.url = url || `${process.env.REACT_APP_WS_URL || "ws://localhost:8000"}/ws/observations`;
+    this.url = url || resolveWebSocketUrl();
   }
 
   /**

@@ -224,6 +224,8 @@ The test suite includes an installer/admin regression that verifies:
 Common environment variables:
 
 - `HOST` and `PORT` for the FastAPI bind address
+- `CORS_ORIGINS` for explicit comma-separated browser origins if you need to override the defaults
+- `CORS_ORIGIN_REGEX` for the browser-origin regex allowlist used for LAN/private-network access
 - `DATABASE_URL` for the database location
 - `DATA_DIR` for exported files and other persistent app data
 - `JWT_SECRET_KEY` for auth token signing
@@ -236,6 +238,12 @@ Defaults for local development:
 - data directory: `./data`
 - host: `0.0.0.0`
 - port: `8000`
+
+LAN access notes:
+
+- the built frontend now uses the browser's current origin for `/api` and `/ws/observations`, so opening `http://<server-ip>:8000` from another machine uses that server automatically instead of `localhost`
+- default CORS allows localhost plus private-network IP browser origins; if you access the app through a custom hostname, set `CORS_ORIGINS` or `CORS_ORIGIN_REGEX` accordingly
+- if Windows Firewall is enabled, allow inbound TCP on the chosen app port (default `8000`)
 
 ## Forecast Methods
 
