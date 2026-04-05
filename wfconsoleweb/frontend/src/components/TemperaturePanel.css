@@ -47,6 +47,12 @@
   align-items: flex-end;
 }
 
+.temp-minmax-inline {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+
 .temp-minmax-label {
   font-size: 0.65rem;
   opacity: 0.55;
@@ -60,6 +66,16 @@
 }
 .temp-minmax-value.warm { color: var(--temp-warm); }
 .temp-minmax-value.cool { color: var(--temp-cool); }
+
+.temp-minmax-time {
+  font-size: 0.72rem;
+  opacity: 0.82;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  min-width: 3.25rem;
+  text-align: right;
+}
 
 /* ---- secondary metrics row ---- */
 .temp-secondary-row {
@@ -152,6 +168,11 @@
 
   .primary-panels-grid .temp-minmax-value {
     font-size: 1.14rem;
+  }
+
+  .primary-panels-grid .temp-minmax-time {
+    font-size: 0.68rem;
+    opacity: 0.78;
   }
 
   .primary-panels-grid .temp-secondary-row {

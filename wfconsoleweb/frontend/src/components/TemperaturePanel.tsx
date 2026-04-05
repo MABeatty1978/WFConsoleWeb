@@ -8,6 +8,7 @@ import React from "react";
 import { CurrentConditions, WxSummary } from "../types";
 import { useSettings } from "../context/SettingsContext";
 import { useTemperatureConverter } from "../hooks/useWeather";
+import { formatLocalTime } from "../utils/dateTime";
 import "./TemperaturePanel.css";
 
 interface Props {
@@ -66,6 +67,22 @@ export default function TemperaturePanel({ conditions, wxSummary }: Props) {
   const trend3h   = convertDelta(wxSummary?.current.temp_trend_c ?? 0.0);
   const diff24h   = convertDelta(wxSummary?.current.temp_diff_24h_c ?? 0.0);
 
+  const tempMaxTime = wxSummary?.today.temp_max_time ?? null;
+  const tempMinTime = wxSummary?.today.temp_min_time ?? null;
+  const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  const fmtTime = (unix: number | null): string | null => {
+    if (unix === null) return null;
+    return formatLocalTime(unix * 1000, {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: browserTimeZone,
+    });
+  };
+
+  const displayMaxTime = fmtTime(tempMaxTime);
+  const displayMinTime = fmtTime(tempMinTime);
+
   const humidity = conditions?.humidity ?? null;
 
   const fmt = (val: number | null, dec = 0) =>
@@ -90,11 +107,25 @@ export default function TemperaturePanel({ conditions, wxSummary }: Props) {
         <div className="temp-minmax-block">
           <div className="temp-minmax-item">
             <span className="temp-minmax-label">High</span>
-            <span className="temp-minmax-value warm">{fmt(tempMax)}°</span>
+            <div className="temp-minmax-inline">
+              {displayMaxTime && (
+                <span className="temp-minmax-time" title="Time this daily high occurred">
+                  {displayMaxTime}
+                </span>
+              )}
+              <span className="temp-minmax-value warm">{fmt(tempMax)}°</span>
+            </div>
           </div>
           <div className="temp-minmax-item">
             <span className="temp-minmax-label">Low</span>
-            <span className="temp-minmax-value cool">{fmt(tempMin)}°</span>
+            <div className="temp-minmax-inline">
+              {displayMinTime && (
+                <span className="temp-minmax-time" title="Time this daily low occurred">
+                  {displayMinTime}
+                </span>
+              )}
+              <span className="temp-minmax-value cool">{fmt(tempMin)}°</span>
+            </div>
           </div>
         </div>
       </div>

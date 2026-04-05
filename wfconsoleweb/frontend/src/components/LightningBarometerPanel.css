@@ -139,6 +139,87 @@
   text-transform: capitalize;
 }
 
+.solar-content {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.9rem;
+  align-content: start;
+}
+
+.uv-visualization {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.9rem 0.95rem;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: var(--corner-radius);
+}
+
+.uv-label {
+  opacity: 0.7;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.uv-bar-container {
+  width: 100%;
+  height: 32px;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.uv-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease, background-color 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.8);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.uv-risk {
+  font-weight: 600;
+  color: var(--color-accent);
+  text-align: center;
+  font-size: 1.05rem;
+  letter-spacing: 0.3px;
+}
+
+@media (min-width: 1181px) {
+  .primary-panels-grid .solar-content {
+    gap: 0.6rem;
+  }
+
+  .primary-panels-grid .uv-visualization {
+    padding: 0.62rem 0.72rem;
+    gap: 0.4rem;
+  }
+
+  .primary-panels-grid .uv-bar-container {
+    height: 28px;
+  }
+
+  .primary-panels-grid .uv-bar-fill {
+    font-size: 0.75rem;
+    padding-right: 6px;
+  }
+
+  .primary-panels-grid .uv-label {
+    font-size: 0.74rem;
+  }
+
+  .primary-panels-grid .uv-risk {
+    font-size: 0.92rem;
+  }
+}
+
 @media (min-width: 1181px) {
   .primary-panels-grid .atmos-header {
     gap: 0.5rem;

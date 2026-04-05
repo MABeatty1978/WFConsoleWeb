@@ -16,6 +16,14 @@ python -m uvicorn wfconsoleweb.backend.main:app --reload
 
 Then open `http://localhost:8000`.
 
+For day-to-day use where the backend should stay running after you close your terminal, use:
+
+```powershell
+.\scripts\manage-backend.ps1 start
+```
+
+Use `uvicorn --reload` only for active development sessions where a foreground process is expected.
+
 ## Important Setup Behavior
 
 - runtime dependencies come from `requirements.txt`

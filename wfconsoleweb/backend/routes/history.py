@@ -54,6 +54,55 @@ class DataExportResponse(BaseModel):
     record_count: int
 
 
+def _round_to_interval(dt: datetime, minutes: int) -> datetime:
+    seconds = minutes * 60
+    return dt.replace(microsecond=0) - timedelta(seconds=dt.timestamp() % seconds)
+
+
+def _build_observation_series(
+    observations: List[ObservationHistory],
+    granularity_minutes: int,
+    value_getter,
+    reducer: str = "avg",
+) -> tuple[List[DataPoint], List[float]]:
+    buckets: dict[datetime, List[float]] = {}
+
+    for obs in observations:
+        value = value_getter(obs)
+        if value is None:
+            continue
+
+        bucket_time = _round_to_interval(obs.timestamp, granularity_minutes)
+        buckets.setdefault(bucket_time, []).append(value)
+
+    data_points: List[DataPoint] = []
+    values: List[float] = []
+
+    for timestamp in sorted(buckets.keys()):
+        samples = buckets[timestamp]
+        if not samples:
+            continue
+
+        if reducer == "max":
+            value = max(samples)
+        elif reducer == "sum":
+            value = sum(samples)
+        elif reducer == "direction":
+            import math
+
+            sin_sum = sum(math.sin(math.radians(v)) for v in samples)
+            cos_sum = sum(math.cos(math.radians(v)) for v in samples)
+            angle = math.degrees(math.atan2(sin_sum, cos_sum))
+            value = (angle + 360) % 360
+        else:
+            value = sum(samples) / len(samples)
+
+        data_points.append(DataPoint(timestamp=timestamp.isoformat(), value=value))
+        values.append(value)
+
+    return data_points, values
+
+
 # History endpoints
 
 
@@ -206,6 +255,68 @@ async def get_wind_speed_history(
     )
 
 
+@router.get("/data/wind-gust")
+async def get_wind_gust_history(
+    hours: int = Query(24, ge=1, le=365 * 24),
+    granularity: str = Query("1min", enum=["1min", "5min", "hourly", "daily"]),
+    db: Session = Depends(get_db),
+) -> TimeSeriesData:
+    """Get historical wind gust data."""
+    archival = DataArchivalManager(db)
+    start_time = datetime.utcnow() - timedelta(hours=hours)
+    end_time = datetime.utcnow()
+    observations = archival.get_observations_in_range(start_time, end_time)
+
+    granularity_minutes = {"1min": 1, "5min": 5, "hourly": 60, "daily": 1440}[granularity]
+    data_points, values = _build_observation_series(
+        observations,
+        granularity_minutes,
+        lambda obs: obs.wind_gust,
+        reducer="max",
+    )
+
+    return TimeSeriesData(
+        metric="wind_gust",
+        unit="m/s",
+        data_points=data_points,
+        data_granularity=granularity,
+        min_value=min(values) if values else None,
+        max_value=max(values) if values else None,
+        avg_value=sum(values) / len(values) if values else None,
+    )
+
+
+@router.get("/data/wind-direction")
+async def get_wind_direction_history(
+    hours: int = Query(24, ge=1, le=365 * 24),
+    granularity: str = Query("1min", enum=["1min", "5min", "hourly", "daily"]),
+    db: Session = Depends(get_db),
+) -> TimeSeriesData:
+    """Get historical wind direction data."""
+    archival = DataArchivalManager(db)
+    start_time = datetime.utcnow() - timedelta(hours=hours)
+    end_time = datetime.utcnow()
+    observations = archival.get_observations_in_range(start_time, end_time)
+
+    granularity_minutes = {"1min": 1, "5min": 5, "hourly": 60, "daily": 1440}[granularity]
+    data_points, values = _build_observation_series(
+        observations,
+        granularity_minutes,
+        lambda obs: obs.wind_direction,
+        reducer="direction",
+    )
+
+    return TimeSeriesData(
+        metric="wind_direction",
+        unit="deg",
+        data_points=data_points,
+        data_granularity=granularity,
+        min_value=min(values) if values else None,
+        max_value=max(values) if values else None,
+        avg_value=sum(values) / len(values) if values else None,
+    )
+
+
 @router.get("/data/rainfall")
 async def get_rainfall_history(
     hours: int = Query(24, ge=1, le=365 * 24),
@@ -226,7 +337,7 @@ async def get_rainfall_history(
     for timestamp in sorted(aggregated.keys()):
         bucket = aggregated[timestamp]
         rainfall = bucket.get("rainfall_total_mm", 0)
-        if rainfall is not None and rainfall > 0:
+        if rainfall is not None:
             data_points.append(DataPoint(timestamp=timestamp.isoformat(), value=rainfall))
             rainfalls.append(rainfall)
 
@@ -240,6 +351,37 @@ async def get_rainfall_history(
         min_value=min(rainfalls) if rainfalls else 0,
         max_value=max(rainfalls) if rainfalls else 0,
         avg_value=total_rainfall / len(rainfalls) if rainfalls else 0,
+    )
+
+
+@router.get("/data/rainfall-rate")
+async def get_rainfall_rate_history(
+    hours: int = Query(24, ge=1, le=365 * 24),
+    granularity: str = Query("1min", enum=["1min", "5min", "hourly", "daily"]),
+    db: Session = Depends(get_db),
+) -> TimeSeriesData:
+    """Get historical rainfall rate data."""
+    archival = DataArchivalManager(db)
+    start_time = datetime.utcnow() - timedelta(hours=hours)
+    end_time = datetime.utcnow()
+    observations = archival.get_observations_in_range(start_time, end_time)
+
+    granularity_minutes = {"1min": 1, "5min": 5, "hourly": 60, "daily": 1440}[granularity]
+    data_points, values = _build_observation_series(
+        observations,
+        granularity_minutes,
+        lambda obs: obs.rainfall_rate,
+        reducer="avg",
+    )
+
+    return TimeSeriesData(
+        metric="rainfall_rate",
+        unit="mm/h",
+        data_points=data_points,
+        data_granularity=granularity,
+        min_value=min(values) if values else 0,
+        max_value=max(values) if values else 0,
+        avg_value=sum(values) / len(values) if values else 0,
     )
 
 
@@ -291,6 +433,68 @@ async def get_solar_radiation_history(
         min_value=min(solar_values) if solar_values else None,
         max_value=max(solar_values) if solar_values else None,
         avg_value=sum(solar_values) / len(solar_values) if solar_values else None,
+    )
+
+
+@router.get("/data/uv-index")
+async def get_uv_index_history(
+    hours: int = Query(24, ge=1, le=365 * 24),
+    granularity: str = Query("1min", enum=["1min", "5min", "hourly", "daily"]),
+    db: Session = Depends(get_db),
+) -> TimeSeriesData:
+    """Get historical UV index data."""
+    archival = DataArchivalManager(db)
+    start_time = datetime.utcnow() - timedelta(hours=hours)
+    end_time = datetime.utcnow()
+    observations = archival.get_observations_in_range(start_time, end_time)
+
+    granularity_minutes = {"1min": 1, "5min": 5, "hourly": 60, "daily": 1440}[granularity]
+    data_points, values = _build_observation_series(
+        observations,
+        granularity_minutes,
+        lambda obs: obs.uv_index,
+        reducer="avg",
+    )
+
+    return TimeSeriesData(
+        metric="uv_index",
+        unit="index",
+        data_points=data_points,
+        data_granularity=granularity,
+        min_value=min(values) if values else None,
+        max_value=max(values) if values else None,
+        avg_value=sum(values) / len(values) if values else None,
+    )
+
+
+@router.get("/data/lightning-strikes")
+async def get_lightning_strikes_history(
+    hours: int = Query(24, ge=1, le=365 * 24),
+    granularity: str = Query("1min", enum=["1min", "5min", "hourly", "daily"]),
+    db: Session = Depends(get_db),
+) -> TimeSeriesData:
+    """Get historical lightning strike counts (3h rolling count from station packets)."""
+    archival = DataArchivalManager(db)
+    start_time = datetime.utcnow() - timedelta(hours=hours)
+    end_time = datetime.utcnow()
+    observations = archival.get_observations_in_range(start_time, end_time)
+
+    granularity_minutes = {"1min": 1, "5min": 5, "hourly": 60, "daily": 1440}[granularity]
+    data_points, values = _build_observation_series(
+        observations,
+        granularity_minutes,
+        lambda obs: obs.lightning_strike_count,
+        reducer="max",
+    )
+
+    return TimeSeriesData(
+        metric="lightning_strikes",
+        unit="count",
+        data_points=data_points,
+        data_granularity=granularity,
+        min_value=min(values) if values else 0,
+        max_value=max(values) if values else 0,
+        avg_value=sum(values) / len(values) if values else 0,
     )
 
 

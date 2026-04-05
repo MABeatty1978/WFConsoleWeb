@@ -14,12 +14,12 @@ SETUP_ADMIN_SCRIPT = REPO_ROOT / "scripts" / "setup-admin.py"
 
 def _reset_backend_modules() -> None:
     module_names = [
-        "wfpiconsole.config.settings",
-        "wfpiconsole.config.database",
-        "wfpiconsole.config.models",
-        "wfpiconsole.backend.auth",
-        "wfpiconsole.backend.dependencies",
-        "wfpiconsole.backend.routes.auth",
+        "wfconsoleweb.config.settings",
+        "wfconsoleweb.config.database",
+        "wfconsoleweb.config.models",
+        "wfconsoleweb.backend.auth",
+        "wfconsoleweb.backend.dependencies",
+        "wfconsoleweb.backend.routes.auth",
     ]
 
     for name in module_names:
@@ -27,7 +27,7 @@ def _reset_backend_modules() -> None:
 
 
 def test_setup_admin_creates_single_admin_and_login_works_with_special_chars(tmp_path, monkeypatch):
-    db_path = tmp_path / "wfpiconsole.db"
+    db_path = tmp_path / "wfconsoleweb.db"
     data_dir = tmp_path / "data"
     data_dir.mkdir()
 
@@ -68,10 +68,10 @@ def test_setup_admin_creates_single_admin_and_login_works_with_special_chars(tmp
 
     _reset_backend_modules()
 
-    auth_module = importlib.import_module("wfpiconsole.backend.auth")
-    routes_auth_module = importlib.import_module("wfpiconsole.backend.routes.auth")
-    database_module = importlib.import_module("wfpiconsole.config.database")
-    models_module = importlib.import_module("wfpiconsole.config.models")
+    auth_module = importlib.import_module("wfconsoleweb.backend.auth")
+    routes_auth_module = importlib.import_module("wfconsoleweb.backend.routes.auth")
+    database_module = importlib.import_module("wfconsoleweb.config.database")
+    models_module = importlib.import_module("wfconsoleweb.config.models")
 
     db = database_module.SessionLocal()
     try:

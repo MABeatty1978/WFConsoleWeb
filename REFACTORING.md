@@ -26,7 +26,7 @@ Successfully refactored the entire WFConsoleWeb project to consistently use "WFC
 ### Backend (Python/FastAPI)
 
 **5. system.py (routes)**
-- API version endpoint updated: `app_name` now returns "WFConsoleWeb"
+- System/version-facing response content and labels were updated to WFConsoleWeb branding
 
 ### Build Infrastructure
 
@@ -61,15 +61,10 @@ Successfully refactored the entire WFConsoleWeb project to consistently use "WFC
 | Service Name (systemd) | wfconsoleweb | Linux service |
 | Service Name (Windows) | WFConsoleWeb | Windows service |
 
-### Directory Structure (Unchanged)
+### Directory Structure (Current)
 ```
-wfpiconsole/              # Root Python package (kept for backwards compatibility)
-├── backend/              # FastAPI backend
-├── frontend/             # React frontend
-├── core/                 # Business logic
-├── config/               # Configuration
-├── service/              # Service management
-└── themes/               # Theme files
+wfconsoleweb/             # Primary Python package used by current app/runtime
+wfpiconsole/              # Legacy compatibility subtree retained in repository
 ```
 
 ---
@@ -110,7 +105,7 @@ To maintain backwards compatibility and avoid breaking existing code:
 
 ---
 
-## Verification
+## Verification (Historical Snapshot)
 
 All changes verified with grep searches:
 
@@ -122,7 +117,7 @@ All changes verified with grep searches:
 ✅ package.json: "wfconsoleweb-frontend" package name
 
 # Backend
-✅ system.py: app_name returns "WFConsoleWeb"
+✅ system.py: system/version-facing responses and labels use "WFConsoleWeb"
 
 # Build
 ✅ build.py: Title mentions "WFConsoleWeb"

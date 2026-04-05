@@ -141,26 +141,6 @@ def create_app() -> FastAPI:
             "name": "WFConsoleWeb",
         }
 
-    # System info endpoint
-    @app.get("/api/system/info", tags=["System"])
-    async def system_info():
-        """Get system information."""
-        import platform
-        import psutil
-
-        cpu_percent = psutil.cpu_percent(interval=0.1)
-        memory = psutil.virtual_memory()
-
-        return {
-            "platform": platform.system(),
-            "platform_version": platform.version(),
-            "python_version": platform.python_version(),
-            "cpu_percent": cpu_percent,
-            "memory_percent": memory.percent,
-            "memory_available_mb": memory.available // (1024 * 1024),
-            "uptime_seconds": psutil.boot_time(),
-        }
-
     # WebSocket endpoint for real-time observations
     @app.websocket("/ws/observations")
     async def websocket_observations(websocket: WebSocket):
@@ -187,16 +167,6 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.error(f"WebSocket error: {e}")
             await ws_manager.disconnect(websocket)
-
-    # API version endpoint
-    @app.get("/api/version", tags=["System"])
-    async def api_version():
-        """Get API version information."""
-        return {
-            "api_version": "1.0.0",
-            "app_version": __version__,
-            "release_date": "2024-01-01",
-        }
 
     # Prefer the compiled React build; fall back to public for development assets.
     frontend_build = Path(__file__).parent.parent / "frontend" / "build"

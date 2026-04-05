@@ -45,6 +45,25 @@ export default function SettingsPage() {
   const [weatherFlowConfigured, setWeatherFlowConfigured] = useState(false);
   const [apiKeyLoading, setApiKeyLoading] = useState(false);
   const [apiKeySaving, setApiKeySaving] = useState(false);
+  const [alertThresholds, setAlertThresholds] = useState({
+    extreme_heat_c: 40.0,
+    extreme_cold_c: -20.0,
+    high_wind_mps: 15.5,
+    extreme_wind_mps: 25.7,
+    high_uv: 10.0,
+    lightning_distance_km: 5.0,
+    heavy_rain_mm: 50.0,
+  });
+  const [alertNotifications, setAlertNotifications] = useState({
+    alert_email_enabled: false,
+    alert_email_address: "",
+    alert_browser_push_enabled: false,
+    alert_cooldown_minutes: 60,
+  });
+  const [alertThresholdsLoading, setAlertThresholdsLoading] = useState(false);
+  const [alertThresholdsSaving, setAlertThresholdsSaving] = useState(false);
+  const [alertNotificationsLoading, setAlertNotificationsLoading] = useState(false);
+  const [alertNotificationsSaving, setAlertNotificationsSaving] = useState(false);
   const [usernameCurrentPassword, setUsernameCurrentPassword] = useState("");
   const [newUsername, setNewUsername] = useState("");
   const [usernameSaving, setUsernameSaving] = useState(false);
@@ -67,6 +86,53 @@ export default function SettingsPage() {
   const showMessage = (type: "success" | "error", text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 3000);
+  };
+
+  // Unit conversion helpers for alert thresholds
+  const convertTempToBackend = (value: number, displayUnit: "C" | "F"): number => {
+    if (displayUnit === "C") return value;
+    return (value - 32) * (5 / 9);
+  };
+
+  const convertTempFromBackend = (value: number, displayUnit: "C" | "F"): number => {
+    if (displayUnit === "C") return value;
+    return value * (9 / 5) + 32;
+  };
+
+  const convertWindToBackend = (value: number, displayUnit: string): number => {
+    if (displayUnit === "m/s") return value;
+    if (displayUnit === "mph") return value / 2.237;
+    if (displayUnit === "kph") return value / 3.6;
+    if (displayUnit === "knots") return value / 1.944;
+    return value;
+  };
+
+  const convertWindFromBackend = (value: number, displayUnit: string): number => {
+    if (displayUnit === "m/s") return value;
+    if (displayUnit === "mph") return value * 2.237;
+    if (displayUnit === "kph") return value * 3.6;
+    if (displayUnit === "knots") return value * 1.944;
+    return value;
+  };
+
+  const convertDistanceToBackend = (value: number, displayUnit: string): number => {
+    if (displayUnit === "km") return value;
+    return value / 0.621371;
+  };
+
+  const convertDistanceFromBackend = (value: number, displayUnit: string): number => {
+    if (displayUnit === "km") return value;
+    return value * 0.621371;
+  };
+
+  const convertRainfallToBackend = (value: number, displayUnit: string): number => {
+    if (displayUnit === "mm") return value;
+    return value * 25.4;
+  };
+
+  const convertRainfallFromBackend = (value: number, displayUnit: string): number => {
+    if (displayUnit === "mm") return value;
+    return value / 25.4;
   };
 
   useEffect(() => {
@@ -154,14 +220,122 @@ export default function SettingsPage() {
       }
     };
 
+    const loadAlertThresholds = async () => {
+      try {
+        setAlertThresholdsLoading(true);
+        const response = await apiClient.getAlertThresholds();
+        if (!isMounted) {
+          return;
+        }
+        // Convert backend units to display units
+        const tempUnit = settings?.temperature_unit || "C";
+        const windUnit = settings?.wind_speed_unit || "m/s";
+        const distUnit = settings?.distance_unit || "km";
+        const rainUnit = settings?.rainfall_unit || "mm";
+        setAlertThresholds({
+          extreme_heat_c: convertTempFromBackend(response.extreme_heat_c ?? 40.0, tempUnit),
+          extreme_cold_c: convertTempFromBackend(response.extreme_cold_c ?? -20.0, tempUnit),
+          high_wind_mps: convertWindFromBackend(response.high_wind_mps ?? 15.5, windUnit),
+          extreme_wind_mps: convertWindFromBackend(response.extreme_wind_mps ?? 25.7, windUnit),
+          high_uv: response.high_uv ?? 10.0,
+          lightning_distance_km: convertDistanceFromBackend(response.lightning_distance_km ?? 5.0, distUnit),
+          heavy_rain_mm: convertRainfallFromBackend(response.heavy_rain_mm ?? 50.0, rainUnit),
+        });
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+        showMessage("error", "Failed to load alert thresholds");
+      } finally {
+        if (isMounted) {
+          setAlertThresholdsLoading(false);
+        }
+      }
+    };
+
+    const loadAlertNotifications = async () => {
+      try {
+        setAlertNotificationsLoading(true);
+        const response = await apiClient.getAlertNotificationSettings();
+        if (!isMounted) {
+          return;
+        }
+        setAlertNotifications({
+          alert_email_enabled: response.alert_email_enabled ?? false,
+          alert_email_address: response.alert_email_address ?? "",
+          alert_browser_push_enabled: response.alert_browser_push_enabled ?? false,
+          alert_cooldown_minutes: response.alert_cooldown_minutes ?? 60,
+        });
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+        showMessage("error", "Failed to load notification settings");
+      } finally {
+        if (isMounted) {
+          setAlertNotificationsLoading(false);
+        }
+      }
+    };
+
     loadStationConfig();
     loadApiKeyStatus();
     loadServerStatus();
+    loadAlertThresholds();
+    loadAlertNotifications();
 
     return () => {
       isMounted = false;
     };
   }, [isAdmin]);
+
+  // Reload alert thresholds when unit settings change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!isAdmin) {
+      return;
+    }
+
+    let isMounted = true;
+    const tempUnit = settings?.temperature_unit || "C";
+    const windUnit = settings?.wind_speed_unit || "m/s";
+    const distUnit = settings?.distance_unit || "km";
+    const rainUnit = settings?.rainfall_unit || "mm";
+
+    const loadAlertThresholds = async () => {
+      try {
+        setAlertThresholdsLoading(true);
+        const response = await apiClient.getAlertThresholds();
+        if (!isMounted) {
+          return;
+        }
+        // Convert backend units to display units
+        setAlertThresholds({
+          extreme_heat_c: convertTempFromBackend(response.extreme_heat_c ?? 40.0, tempUnit),
+          extreme_cold_c: convertTempFromBackend(response.extreme_cold_c ?? -20.0, tempUnit),
+          high_wind_mps: convertWindFromBackend(response.high_wind_mps ?? 15.5, windUnit),
+          extreme_wind_mps: convertWindFromBackend(response.extreme_wind_mps ?? 25.7, windUnit),
+          high_uv: response.high_uv ?? 10.0,
+          lightning_distance_km: convertDistanceFromBackend(response.lightning_distance_km ?? 5.0, distUnit),
+          heavy_rain_mm: convertRainfallFromBackend(response.heavy_rain_mm ?? 50.0, rainUnit),
+        });
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+      } finally {
+        if (isMounted) {
+          setAlertThresholdsLoading(false);
+        }
+      }
+    };
+
+    loadAlertThresholds();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAdmin, settings]);
 
   const toggleTab = (tab: string) => {
     const newTabs = new Set(activeTabs);
@@ -403,6 +577,67 @@ export default function SettingsPage() {
     } finally {
       setInstallingUpdate(false);
     }
+  };
+
+  const handleAlertThresholdsSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    try {
+      setAlertThresholdsSaving(true);
+      // Convert display units back to backend units
+      const backendThresholds = {
+        extreme_heat_c: convertTempToBackend(alertThresholds.extreme_heat_c, settings?.temperature_unit || "C"),
+        extreme_cold_c: convertTempToBackend(alertThresholds.extreme_cold_c, settings?.temperature_unit || "C"),
+        high_wind_mps: convertWindToBackend(alertThresholds.high_wind_mps, settings?.wind_speed_unit || "m/s"),
+        extreme_wind_mps: convertWindToBackend(alertThresholds.extreme_wind_mps, settings?.wind_speed_unit || "m/s"),
+        high_uv: alertThresholds.high_uv,
+        lightning_distance_km: convertDistanceToBackend(alertThresholds.lightning_distance_km, settings?.distance_unit || "km"),
+        heavy_rain_mm: convertRainfallToBackend(alertThresholds.heavy_rain_mm, settings?.rainfall_unit || "mm"),
+      };
+      await apiClient.updateAlertThresholds(backendThresholds);
+      showMessage("success", "Alert thresholds saved successfully");
+    } catch {
+      showMessage("error", "Failed to save alert thresholds");
+    } finally {
+      setAlertThresholdsSaving(false);
+    }
+  };
+
+  const handleAlertThresholdChange = (field: keyof typeof alertThresholds, value: string) => {
+    const numValue = parseFloat(value) || 0;
+    setAlertThresholds((prev) => ({
+      ...prev,
+      [field]: numValue,
+    }));
+  };
+
+  const handleAlertNotificationsSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (alertNotifications.alert_email_enabled && !alertNotifications.alert_email_address.trim()) {
+      showMessage("error", "Email address is required when email notifications are enabled.");
+      return;
+    }
+
+    try {
+      setAlertNotificationsSaving(true);
+      await apiClient.updateAlertNotificationSettings(alertNotifications);
+      showMessage("success", "Notification settings saved successfully");
+    } catch {
+      showMessage("error", "Failed to save notification settings");
+    } finally {
+      setAlertNotificationsSaving(false);
+    }
+  };
+
+  const handleAlertNotificationChange = (
+    field: keyof typeof alertNotifications,
+    value: string | boolean
+  ) => {
+    setAlertNotifications((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
   };
 
   const handleRestartServer = async () => {
@@ -834,6 +1069,201 @@ export default function SettingsPage() {
                       </div>
                     </form>
                   )}
+              </div>
+            )}
+          </section>
+        )}
+
+        {isAdmin && (
+          <section className="settings-section">
+            <div className="section-header" onClick={() => toggleTab("alert-thresholds")}>
+              <h2>Alert Thresholds</h2>
+              <span className={`toggle ${activeTabs.has("alert-thresholds") ? "open" : ""}`}>
+                ▼
+              </span>
+            </div>
+
+            {activeTabs.has("alert-thresholds") && (
+              <div className="section-content">
+                <p className="section-copy">
+                  Configure the thresholds that trigger weather alerts. The app monitors observations in real-time and fires alerts when conditions exceed these values.
+                </p>
+
+                {alertThresholdsLoading || alertNotificationsLoading ? (
+                  <div className="admin-note">
+                    <p>Loading alert settings...</p>
+                  </div>
+                ) : (
+                  <>
+                    <form className="station-form" onSubmit={handleAlertThresholdsSubmit}>
+                      <div className="form-group">
+                        <h3>Temperature Thresholds</h3>
+                        <div className="form-field">
+                          <label htmlFor="extreme_heat_c">Extreme Heat ({settings?.temperature_unit || "C"})</label>
+                          <input
+                            id="extreme_heat_c"
+                            type="number"
+                            step="0.1"
+                            value={alertThresholds.extreme_heat_c.toFixed(1)}
+                            onChange={(e) => handleAlertThresholdChange("extreme_heat_c", e.target.value)}
+                            disabled={alertThresholdsSaving}
+                          />
+                        </div>
+
+                        <div className="form-field">
+                          <label htmlFor="extreme_cold_c">Extreme Cold ({settings?.temperature_unit || "C"})</label>
+                          <input
+                            id="extreme_cold_c"
+                            type="number"
+                            step="0.1"
+                            value={alertThresholds.extreme_cold_c.toFixed(1)}
+                            onChange={(e) => handleAlertThresholdChange("extreme_cold_c", e.target.value)}
+                            disabled={alertThresholdsSaving}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="form-group">
+                        <h3>Wind Thresholds</h3>
+                        <div className="form-field">
+                          <label htmlFor="high_wind_mps">High Wind ({settings?.wind_speed_unit || "m/s"})</label>
+                          <input
+                            id="high_wind_mps"
+                            type="number"
+                            step="0.1"
+                            value={alertThresholds.high_wind_mps.toFixed(1)}
+                            onChange={(e) => handleAlertThresholdChange("high_wind_mps", e.target.value)}
+                            disabled={alertThresholdsSaving}
+                          />
+                        </div>
+
+                        <div className="form-field">
+                          <label htmlFor="extreme_wind_mps">Extreme Wind ({settings?.wind_speed_unit || "m/s"})</label>
+                          <input
+                            id="extreme_wind_mps"
+                            type="number"
+                            step="0.1"
+                            value={alertThresholds.extreme_wind_mps.toFixed(1)}
+                            onChange={(e) => handleAlertThresholdChange("extreme_wind_mps", e.target.value)}
+                            disabled={alertThresholdsSaving}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="form-group">
+                        <h3>Other Thresholds</h3>
+                        <div className="form-field">
+                          <label htmlFor="high_uv">High UV Index</label>
+                          <input
+                            id="high_uv"
+                            type="number"
+                            step="0.1"
+                            value={alertThresholds.high_uv.toFixed(1)}
+                            onChange={(e) => handleAlertThresholdChange("high_uv", e.target.value)}
+                            disabled={alertThresholdsSaving}
+                          />
+                        </div>
+
+                        <div className="form-field">
+                          <label htmlFor="lightning_distance_km">Lightning Nearby ({settings?.distance_unit || "km"})</label>
+                          <input
+                            id="lightning_distance_km"
+                            type="number"
+                            step="0.1"
+                            value={alertThresholds.lightning_distance_km.toFixed(1)}
+                            onChange={(e) => handleAlertThresholdChange("lightning_distance_km", e.target.value)}
+                            disabled={alertThresholdsSaving}
+                          />
+                        </div>
+
+                        <div className="form-field">
+                          <label htmlFor="heavy_rain_mm">Heavy Rain ({settings?.rainfall_unit || "mm"})</label>
+                          <input
+                            id="heavy_rain_mm"
+                            type="number"
+                            step="0.1"
+                            value={alertThresholds.heavy_rain_mm.toFixed(1)}
+                            onChange={(e) => handleAlertThresholdChange("heavy_rain_mm", e.target.value)}
+                            disabled={alertThresholdsSaving}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="form-actions">
+                        <button className="save-button" type="submit" disabled={alertThresholdsSaving}>
+                          {alertThresholdsSaving ? "Saving..." : "Save Thresholds"}
+                        </button>
+                      </div>
+                    </form>
+
+                    <form className="station-form" onSubmit={handleAlertNotificationsSubmit}>
+                      <div className="form-group">
+                        <h3>Notification Settings</h3>
+                        <div className="form-field checkbox-field">
+                          <label htmlFor="alert_email_enabled">
+                            <input
+                              id="alert_email_enabled"
+                              type="checkbox"
+                              checked={alertNotifications.alert_email_enabled}
+                              onChange={(e) => handleAlertNotificationChange("alert_email_enabled", e.target.checked)}
+                              disabled={alertNotificationsSaving}
+                            />
+                            <span>Email me alerts</span>
+                          </label>
+                        </div>
+
+                        {alertNotifications.alert_email_enabled && (
+                          <div className="form-field">
+                            <label htmlFor="alert_email_address">Email Address</label>
+                            <input
+                              id="alert_email_address"
+                              type="email"
+                              value={alertNotifications.alert_email_address}
+                              onChange={(e) => handleAlertNotificationChange("alert_email_address", e.target.value)}
+                              placeholder="your.email@example.com"
+                              disabled={alertNotificationsSaving}
+                            />
+                          </div>
+                        )}
+
+                        <div className="form-field checkbox-field">
+                          <label htmlFor="alert_browser_push_enabled">
+                            <input
+                              id="alert_browser_push_enabled"
+                              type="checkbox"
+                              checked={alertNotifications.alert_browser_push_enabled}
+                              onChange={(e) => handleAlertNotificationChange("alert_browser_push_enabled", e.target.checked)}
+                              disabled={alertNotificationsSaving}
+                            />
+                            <span>Browser push notifications</span>
+                          </label>
+                        </div>
+
+                        <div className="form-field">
+                          <label htmlFor="alert_cooldown_minutes">Alert Cooldown (minutes)</label>
+                          <input
+                            id="alert_cooldown_minutes"
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={alertNotifications.alert_cooldown_minutes}
+                            onChange={(e) => handleAlertNotificationChange("alert_cooldown_minutes", parseInt(e.target.value) || 60)}
+                            disabled={alertNotificationsSaving}
+                          />
+                          <p className="helper-text">
+                            Prevents the same alert from triggering repeatedly within this time period (e.g., 60 = one alert per hour max).
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="form-actions">
+                        <button className="save-button" type="submit" disabled={alertNotificationsSaving}>
+                          {alertNotificationsSaving ? "Saving..." : "Save Notification Settings"}
+                        </button>
+                      </div>
+                    </form>
+                  </>
+                )}
               </div>
             )}
           </section>

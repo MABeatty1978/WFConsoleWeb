@@ -6,8 +6,8 @@ import subprocess
 import httpx
 import json
 from pathlib import Path
-from datetime import datetime, timedelta
-from typing import List, Optional
+from datetime import datetime
+from typing import Optional
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -48,15 +48,6 @@ class HealthCheckResponse(BaseModel):
     message: Optional[str] = None
 
 
-class LogEntry(BaseModel):
-    """Log entry."""
-
-    timestamp: str
-    level: str
-    logger: str
-    message: str
-
-
 class DiagnosticsResponse(BaseModel):
     """Diagnostics information."""
 
@@ -86,6 +77,48 @@ class ServerAutostartRequest(BaseModel):
     """Server autostart configuration request."""
 
     enabled: bool
+
+
+class AlertThresholdsResponse(BaseModel):
+    """Weather alert thresholds configuration."""
+
+    extreme_heat_c: float
+    extreme_cold_c: float
+    high_wind_mps: float
+    extreme_wind_mps: float
+    high_uv: float
+    lightning_distance_km: float
+    heavy_rain_mm: float
+
+
+class AlertThresholdsRequest(BaseModel):
+    """Request to update alert thresholds."""
+
+    extreme_heat_c: Optional[float] = None
+    extreme_cold_c: Optional[float] = None
+    high_wind_mps: Optional[float] = None
+    extreme_wind_mps: Optional[float] = None
+    high_uv: Optional[float] = None
+    lightning_distance_km: Optional[float] = None
+    heavy_rain_mm: Optional[float] = None
+
+
+class AlertNotificationSettingsResponse(BaseModel):
+    """Email and notification settings for alerts."""
+
+    alert_email_enabled: bool
+    alert_email_address: Optional[str]
+    alert_browser_push_enabled: bool
+    alert_cooldown_minutes: int
+
+
+class AlertNotificationSettingsRequest(BaseModel):
+    """Request to update notification settings."""
+
+    alert_email_enabled: Optional[bool] = None
+    alert_email_address: Optional[str] = None
+    alert_browser_push_enabled: Optional[bool] = None
+    alert_cooldown_minutes: Optional[int] = None
 
 
 class ServerAutostartResponse(BaseModel):
@@ -244,45 +277,6 @@ async def get_diagnostics(db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get diagnostics",
-        )
-
-
-@router.get("/logs")
-async def get_logs(
-    level: str = "INFO",
-    limit: int = 100,
-    current_user: AdminUser = Depends(get_admin_user),
-):
-    """
-    Get recent application logs.
-
-    Args:
-        level: Log level filter (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-        limit: Maximum number of log entries
-
-    Returns:
-        List of recent log entries
-    """
-    try:
-        # In production, this would query from actual log storage
-        # For now, return placeholder structure
-        log_entries = [
-            {
-                "timestamp": (datetime.utcnow() - timedelta(minutes=i)).isoformat(),
-                "level": "INFO",
-                "logger": "wfpiconsole",
-                "message": f"Sample log entry {i}",
-            }
-            for i in range(min(limit, 10))
-        ]
-
-        return {"log_entries": log_entries, "total_count": len(log_entries)}
-
-    except Exception as e:
-        logger.error(f"Error retrieving logs: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve logs",
         )
 
 
@@ -765,3 +759,144 @@ async def get_active_alerts(db: Session = Depends(get_db)):
         "active_alerts": combined_alerts,
         "total_active": len(combined_alerts),
     }
+
+
+@router.get("/alert-thresholds", response_model=AlertThresholdsResponse)
+async def get_alert_thresholds(db: Session = Depends(get_db), current_user: AdminUser = Depends(get_admin_user)):
+    """Get current weather alert thresholds."""
+    _ = current_user  # Require admin but not used below
+    
+    from wfconsoleweb.config.models import DisplaySettings
+    
+    settings = db.query(DisplaySettings).first()
+    
+    if settings:
+        return {
+            "extreme_heat_c": settings.alert_extreme_heat_c,
+            "extreme_cold_c": settings.alert_extreme_cold_c,
+            "high_wind_mps": settings.alert_high_wind_mps,
+            "extreme_wind_mps": settings.alert_extreme_wind_mps,
+            "high_uv": settings.alert_high_uv,
+            "lightning_distance_km": settings.alert_lightning_distance_km,
+            "heavy_rain_mm": settings.alert_heavy_rain_mm,
+        }
+    
+    # Return defaults if no settings exist
+    return {
+        "extreme_heat_c": 40.0,
+        "extreme_cold_c": -20.0,
+        "high_wind_mps": 15.5,
+        "extreme_wind_mps": 25.7,
+        "high_uv": 10.0,
+        "lightning_distance_km": 5.0,
+        "heavy_rain_mm": 50.0,
+    }
+
+
+@router.post("/alert-thresholds", response_model=AlertThresholdsResponse)
+async def update_alert_thresholds(
+    request: AlertThresholdsRequest,
+    db: Session = Depends(get_db),
+    current_user: AdminUser = Depends(get_admin_user),
+):
+    """Update weather alert thresholds (admin only)."""
+    from wfconsoleweb.config.models import DisplaySettings
+    
+    settings = db.query(DisplaySettings).first()
+    if not settings:
+        settings = DisplaySettings()
+        db.add(settings)
+    
+    if request.extreme_heat_c is not None:
+        settings.alert_extreme_heat_c = request.extreme_heat_c
+    if request.extreme_cold_c is not None:
+        settings.alert_extreme_cold_c = request.extreme_cold_c
+    if request.high_wind_mps is not None:
+        settings.alert_high_wind_mps = request.high_wind_mps
+    if request.extreme_wind_mps is not None:
+        settings.alert_extreme_wind_mps = request.extreme_wind_mps
+    if request.high_uv is not None:
+        settings.alert_high_uv = request.high_uv
+    if request.lightning_distance_km is not None:
+        settings.alert_lightning_distance_km = request.lightning_distance_km
+    if request.heavy_rain_mm is not None:
+        settings.alert_heavy_rain_mm = request.heavy_rain_mm
+    
+    db.commit()
+    db.refresh(settings)
+    
+    logger.info(f"Alert thresholds updated by {current_user.username}")
+    
+    return {
+        "extreme_heat_c": settings.alert_extreme_heat_c,
+        "extreme_cold_c": settings.alert_extreme_cold_c,
+        "high_wind_mps": settings.alert_high_wind_mps,
+        "extreme_wind_mps": settings.alert_extreme_wind_mps,
+        "high_uv": settings.alert_high_uv,
+        "lightning_distance_km": settings.alert_lightning_distance_km,
+        "heavy_rain_mm": settings.alert_heavy_rain_mm,
+    }
+
+
+@router.get("/alert-notification-settings", response_model=AlertNotificationSettingsResponse)
+async def get_alert_notification_settings(
+    db: Session = Depends(get_db),
+    current_user: AdminUser = Depends(get_admin_user),
+):
+    """Get alert notification delivery settings."""
+    _ = current_user
+    from wfconsoleweb.config.models import DisplaySettings
+    
+    settings = db.query(DisplaySettings).first()
+    
+    if settings:
+        return {
+            "alert_email_enabled": settings.alert_email_enabled,
+            "alert_email_address": settings.alert_email_address,
+            "alert_browser_push_enabled": settings.alert_browser_push_enabled,
+            "alert_cooldown_minutes": settings.alert_cooldown_minutes,
+        }
+    
+    return {
+        "alert_email_enabled": False,
+        "alert_email_address": None,
+        "alert_browser_push_enabled": False,
+        "alert_cooldown_minutes": 60,
+    }
+
+
+@router.post("/alert-notification-settings", response_model=AlertNotificationSettingsResponse)
+async def update_alert_notification_settings(
+    request: AlertNotificationSettingsRequest,
+    db: Session = Depends(get_db),
+    current_user: AdminUser = Depends(get_admin_user),
+):
+    """Update alert notification delivery settings (admin only)."""
+    from wfconsoleweb.config.models import DisplaySettings
+    
+    settings = db.query(DisplaySettings).first()
+    if not settings:
+        settings = DisplaySettings()
+        db.add(settings)
+    
+    if request.alert_email_enabled is not None:
+        settings.alert_email_enabled = request.alert_email_enabled
+    if request.alert_email_address is not None:
+        settings.alert_email_address = request.alert_email_address
+    if request.alert_browser_push_enabled is not None:
+        settings.alert_browser_push_enabled = request.alert_browser_push_enabled
+    if request.alert_cooldown_minutes is not None:
+        settings.alert_cooldown_minutes = request.alert_cooldown_minutes
+    
+    db.commit()
+    db.refresh(settings)
+    
+    logger.info(f"Alert notification settings updated by {current_user.username}")
+    
+    return {
+        "alert_email_enabled": settings.alert_email_enabled,
+        "alert_email_address": settings.alert_email_address,
+        "alert_browser_push_enabled": settings.alert_browser_push_enabled,
+        "alert_cooldown_minutes": settings.alert_cooldown_minutes,
+    }
+

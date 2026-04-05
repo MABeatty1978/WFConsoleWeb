@@ -25,7 +25,7 @@ export default function LightningBarometerPanel({ conditions, observation, wxSum
   const lastEvtStrikeTsRef = useRef<string | null>(null);
   const flashTimeoutRef = useRef<number | null>(null);
 
-  const handleModeChange = async (nextMode: "lightning" | "barometer") => {
+  const handleModeChange = async (nextMode: "lightning" | "barometer" | "solar") => {
     if (nextMode === mode) return;
     await setPreferredAtmosPanel(nextMode);
   };
@@ -155,7 +155,7 @@ export default function LightningBarometerPanel({ conditions, observation, wxSum
     <div className="wx-panel atmos-panel">
       <div className="wx-panel-header atmos-header">
         <span className="wx-panel-title">
-          {mode === "lightning" ? "Lightning" : "Barometer"}
+          {mode === "lightning" ? "Lightning" : mode === "solar" ? "Solar & UV" : "Barometer"}
         </span>
         {mode === "lightning" && (
           <span
@@ -178,6 +178,12 @@ export default function LightningBarometerPanel({ conditions, observation, wxSum
             onClick={() => void handleModeChange("barometer")}
           >
             Barometer
+          </button>
+          <button
+            className={`atmos-toggle-btn ${mode === "solar" ? "active" : ""}`}
+            onClick={() => void handleModeChange("solar")}
+          >
+            Solar & UV
           </button>
         </div>
       </div>
@@ -214,6 +220,77 @@ export default function LightningBarometerPanel({ conditions, observation, wxSum
             <span className="label">Status</span>
             <span className="value">
               {lightningStatus}
+            </span>
+          </div>
+        </div>
+      ) : mode === "solar" ? (
+        <div className="atmos-content solar-content">
+          <div className="atmos-item">
+            <span className="label">Solar Radiation</span>
+            <span className="value">{observation?.solar_radiation_wm2 !== null ? `${observation?.solar_radiation_wm2?.toFixed(0)} W/m²` : "--"}</span>
+          </div>
+          <div className="atmos-item">
+            <span className="label">Illuminance (Lux)</span>
+            <span className="value">
+              {observation?.solar_radiation_wm2 !== null
+                ? `${(observation?.solar_radiation_wm2 * 93).toFixed(0)} lux`
+                : "--"}
+            </span>
+          </div>
+          <div className="atmos-item">
+            <span className="label">UV Index</span>
+            <span className="value">{observation?.uv_index !== null ? `${observation?.uv_index?.toFixed(1)}` : "--"}</span>
+          </div>
+          <div className="uv-visualization">
+            <div className="uv-label">UV Level</div>
+            <div className="uv-bar-container">
+              <div
+                className="uv-bar-fill"
+                style={{
+                  width: `${Math.min((observation?.uv_index ?? 0) / 16 * 100, 100)}%`,
+                  backgroundColor: observation?.uv_index
+                    ? observation.uv_index < 3
+                      ? "#10b981" // green for low
+                      : observation.uv_index < 6
+                        ? "#f59e0b" // amber for moderate
+                        : observation.uv_index < 8
+                          ? "#ef4444" // red for high
+                          : observation.uv_index < 11
+                            ? "#a855f7" // purple for very high
+                            : "#6d28d9" // deep purple for extreme
+                    : "#d1d5db",
+                }}
+                title={`UV Index: ${(observation?.uv_index ?? 0).toFixed(1)}`}
+              />
+            </div>
+            <div className="uv-risk">
+              {!observation?.uv_index
+                ? "No Data"
+                : observation.uv_index < 3
+                  ? "Low"
+                  : observation.uv_index < 6
+                    ? "Moderate"
+                    : observation.uv_index < 8
+                      ? "High"
+                      : observation.uv_index < 11
+                        ? "Very High"
+                        : "Extreme"}
+            </div>
+          </div>
+          <div className="atmos-item">
+            <span className="label">Sun Safety</span>
+            <span className="value">
+              {!observation?.uv_index
+                ? "--"
+                : observation.uv_index < 3
+                  ? "Safe to stay outside"
+                  : observation.uv_index < 6
+                    ? "Wear SPF 30+"
+                    : observation.uv_index < 8
+                      ? "Limit sun exposure"
+                      : observation.uv_index < 11
+                        ? "Extra protection needed"
+                        : "Avoid direct sunlight"}
             </span>
           </div>
         </div>

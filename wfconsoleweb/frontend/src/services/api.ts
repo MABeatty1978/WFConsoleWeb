@@ -12,7 +12,6 @@ import {
   LoginRequest,
   LoginResponse,
   AuthUser,
-  HealthStatus,
   WxSummary,
   TempestForecastResponse,
 } from "../types";
@@ -291,6 +290,26 @@ class ApiClient {
     );
   }
 
+  async getWindGustHistory(
+    hours = 24,
+    granularity: "1min" | "5min" | "hourly" | "daily" = "1min"
+  ): Promise<TimeSeriesData> {
+    return this.request<TimeSeriesData>(
+      "GET",
+      `/history/data/wind-gust?hours=${hours}&granularity=${granularity}`
+    );
+  }
+
+  async getWindDirectionHistory(
+    hours = 24,
+    granularity: "1min" | "5min" | "hourly" | "daily" = "1min"
+  ): Promise<TimeSeriesData> {
+    return this.request<TimeSeriesData>(
+      "GET",
+      `/history/data/wind-direction?hours=${hours}&granularity=${granularity}`
+    );
+  }
+
   async getRainfallHistory(
     hours = 24,
     granularity: "1min" | "5min" | "hourly" | "daily" = "1min"
@@ -301,6 +320,16 @@ class ApiClient {
     );
   }
 
+  async getRainfallRateHistory(
+    hours = 24,
+    granularity: "1min" | "5min" | "hourly" | "daily" = "1min"
+  ): Promise<TimeSeriesData> {
+    return this.request<TimeSeriesData>(
+      "GET",
+      `/history/data/rainfall-rate?hours=${hours}&granularity=${granularity}`
+    );
+  }
+
   async getSolarRadiationHistory(
     hours = 24,
     granularity: "1min" | "5min" | "hourly" | "daily" = "1min"
@@ -308,6 +337,48 @@ class ApiClient {
     return this.request<TimeSeriesData>(
       "GET",
       `/history/data/solar-radiation?hours=${hours}&granularity=${granularity}`
+    );
+  }
+
+  async getUvIndexHistory(
+    hours = 24,
+    granularity: "1min" | "5min" | "hourly" | "daily" = "1min"
+  ): Promise<TimeSeriesData> {
+    return this.request<TimeSeriesData>(
+      "GET",
+      `/history/data/uv-index?hours=${hours}&granularity=${granularity}`
+    );
+  }
+
+  async getLightningStrikesHistory(
+    hours = 24,
+    granularity: "1min" | "5min" | "hourly" | "daily" = "1min"
+  ): Promise<TimeSeriesData> {
+    return this.request<TimeSeriesData>(
+      "GET",
+      `/history/data/lightning-strikes?hours=${hours}&granularity=${granularity}`
+    );
+  }
+
+  async getRawObservations(
+    startTimeIso: string,
+    endTimeIso: string,
+    limit = 10000
+  ): Promise<{
+    record_count: number;
+    time_range: { start: string; end: string };
+    observations: Array<{
+      timestamp: string;
+      wind_speed_mps: number | null;
+      wind_direction_deg: number | null;
+      wind_gust_mps: number | null;
+    }>;
+  }> {
+    const start = encodeURIComponent(startTimeIso);
+    const end = encodeURIComponent(endTimeIso);
+    return this.request(
+      "GET",
+      `/history/raw?start_time=${start}&end_time=${end}&limit=${limit}`
     );
   }
 
@@ -351,22 +422,6 @@ class ApiClient {
   }
 
   // System endpoints
-  async getSystemInfo(): Promise<Record<string, unknown>> {
-    return this.request<Record<string, unknown>>("GET", "/system/info", undefined, false);
-  }
-
-  async getHealthStatus(): Promise<HealthStatus> {
-    return this.request<HealthStatus>("GET", "/system/health", undefined, false);
-  }
-
-  async getDiagnostics(): Promise<Record<string, unknown>> {
-    return this.request<Record<string, unknown>>("GET", "/system/diagnostics");
-  }
-
-  async getVersion(): Promise<Record<string, unknown>> {
-    return this.request<Record<string, unknown>>("GET", "/system/version", undefined, false);
-  }
-
   async checkForUpdates(): Promise<Record<string, unknown>> {
     return this.request<Record<string, unknown>>("GET", "/system/updates/check");
   }
@@ -376,12 +431,24 @@ class ApiClient {
     return this.request<Record<string, unknown>>("POST", `/system/updates/install${suffix}`);
   }
 
-  async getServicesStatus(): Promise<Record<string, unknown>> {
-    return this.request<Record<string, unknown>>("GET", "/system/services-status");
-  }
-
   async getActiveAlerts(): Promise<Record<string, unknown>> {
     return this.request<Record<string, unknown>>("GET", "/system/alerts");
+  }
+
+  async getAlertThresholds(): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>("GET", "/system/alert-thresholds");
+  }
+
+  async updateAlertThresholds(thresholds: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>("POST", "/system/alert-thresholds", thresholds);
+  }
+
+  async getAlertNotificationSettings(): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>("GET", "/system/alert-notification-settings");
+  }
+
+  async updateAlertNotificationSettings(settings: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>("POST", "/system/alert-notification-settings", settings);
   }
 
   async restartServer(): Promise<Record<string, unknown>> {

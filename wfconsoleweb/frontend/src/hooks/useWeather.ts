@@ -13,6 +13,27 @@ type HistoricalChartPoint = {
   [key: string]: number | null;
 };
 
+const computeFeelsLikeC = (tempC: number, humidityPct: number): number => {
+  // NOAA heat index approximation in Fahrenheit, converted back to Celsius.
+  const tempF = (tempC * 9) / 5 + 32;
+  if (tempF < 80 || humidityPct < 40) {
+    return tempC;
+  }
+
+  const hiF =
+    -42.379 +
+    2.04901523 * tempF +
+    10.14333127 * humidityPct -
+    0.22475541 * tempF * humidityPct -
+    0.00683783 * tempF * tempF -
+    0.05481717 * humidityPct * humidityPct +
+    0.00122874 * tempF * tempF * humidityPct +
+    0.00085282 * tempF * humidityPct * humidityPct -
+    0.00000199 * tempF * tempF * humidityPct * humidityPct;
+
+  return (hiF - 32) * (5 / 9);
+};
+
 type RapidWindObservation = {
   timestamp: string;
   wind_speed_mps: number | null;
@@ -239,8 +260,13 @@ export function useHistoricalData(metric: string, hours = 24, granularity: "1min
       humidity: "humidity",
       pressure: "pressure",
       wind: "windSpeed",
+      "wind-gust": "windGust",
+      "wind-direction": "windDirection",
       rainfall: "rainfall",
+      "rainfall-rate": "rainfallRate",
       solar: "solarRadiation",
+      "uv-index": "uvIndex",
+      "lightning-strikes": "lightningStrikes",
     };
 
     const dataKey = dataKeyByMetric[metricName.toLowerCase()] ?? metricName;
@@ -267,9 +293,17 @@ export function useHistoricalData(metric: string, hours = 24, granularity: "1min
       setError(null);
 
       let result;
+      let humidityData: TimeSeriesData | null = null;
+      
       switch (metric.toLowerCase()) {
         case "temperature":
           result = await apiClient.getTemperatureHistory(hours, granularity);
+          // Also fetch humidity to calculate dew point
+          try {
+            humidityData = await apiClient.getHumidityHistory(hours, granularity);
+          } catch {
+            // Dew point is optional, continue without it
+          }
           break;
         case "humidity":
           result = await apiClient.getHumidityHistory(hours, granularity);
@@ -280,17 +314,61 @@ export function useHistoricalData(metric: string, hours = 24, granularity: "1min
         case "wind":
           result = await apiClient.getWindSpeedHistory(hours, granularity);
           break;
+        case "wind-gust":
+          result = await apiClient.getWindGustHistory(hours, granularity);
+          break;
+        case "wind-direction":
+          result = await apiClient.getWindDirectionHistory(hours, granularity);
+          break;
         case "rainfall":
           result = await apiClient.getRainfallHistory(hours, granularity);
           break;
+        case "rainfall-rate":
+          result = await apiClient.getRainfallRateHistory(hours, granularity);
+          break;
         case "solar":
           result = await apiClient.getSolarRadiationHistory(hours, granularity);
+          break;
+        case "uv-index":
+          result = await apiClient.getUvIndexHistory(hours, granularity);
+          break;
+        case "lightning-strikes":
+          result = await apiClient.getLightningStrikesHistory(hours, granularity);
           break;
         default:
           throw new Error(`Unknown metric: ${metric}`);
       }
 
-      setData(normalizeTimeSeries(result, metric));
+      let normalizedData = normalizeTimeSeries(result, metric);
+      
+      // Add dew point calculation for temperature
+      if (metric.toLowerCase() === "temperature" && humidityData) {
+        normalizedData = normalizedData.map((point) => {
+          const humidityPoint = humidityData!.data_points.find((hp) => {
+            const hDate = new Date(hp.timestamp);
+            const pDate = new Date(point.timestamp * 1000);
+            return Math.abs(hDate.getTime() - pDate.getTime()) < 60000; // Within 1 minute
+          });
+          
+          if (humidityPoint && point.temperature !== null) {
+            const tempC = point.temperature;
+            const humidity = humidityPoint.value;
+            const a = 17.27;
+            const b = 237.7;
+            const alpha = ((a * tempC) / (b + tempC)) + Math.log(humidity / 100);
+            const dewPoint = (b * alpha) / (a - alpha);
+            const feelsLike = computeFeelsLikeC(tempC, humidity);
+            return {
+              ...point,
+              dewPoint: Math.round(dewPoint * 10) / 10,
+              feelsLike: Math.round(feelsLike * 10) / 10,
+            };
+          }
+          return point;
+        });
+      }
+      
+      setData(normalizedData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch historical data");
     } finally {

@@ -64,6 +64,20 @@ From the repository root:
 
 Runtime files are written under `.runtime\`.
 
+The backend is launched as a detached background process and is not tied to the shell window used to start it.
+
+Detached one-liner start:
+
+```powershell
+Start-Process -WindowStyle Hidden -FilePath "powershell.exe" -ArgumentList @("-NoProfile","-ExecutionPolicy","Bypass","-File","C:/path/to/WFConsoleWeb/scripts/manage-backend.ps1","start")
+```
+
+Administrator-elevated helper (also clears conflicting 8000/TCP and 50222/UDP owners before launch):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\start-admin.ps1"
+```
+
 ### Windows update utility
 
 Use the release asset installer helper:

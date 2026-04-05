@@ -630,7 +630,11 @@ async def get_wx_summary(db: Session = Depends(get_db)):
         )
 
     now = datetime.utcnow()
-    today_start = datetime(now.year, now.month, now.day)
+    # Compute today_start as local calendar midnight converted to UTC so that the
+    # daily high/low and rain totals align with the user's clock, not UTC midnight.
+    _local_now = datetime.now().astimezone()
+    _local_midnight = _local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = _local_midnight.astimezone(timezone.utc).replace(tzinfo=None)
     yesterday_start = today_start - timedelta(days=1)
     month_start = datetime(now.year, now.month, 1)
     year_start = datetime(now.year, 1, 1)
@@ -655,10 +659,33 @@ async def get_wx_summary(db: Session = Depends(get_db)):
     # Latest complete observation
     latest = _get_latest_complete_observation(db)
 
-    # Today's temperature/wind stats
-    temps_today = [o.air_temperature for o in today_obs if o.air_temperature is not None]
+    # Today's temperature/wind stats.
+    # Track (value, timestamp) pairs so we can return the time each extreme was reached.
+    _temp_pairs_today = [
+        (o.air_temperature, o.timestamp)
+        for o in today_obs
+        if o.air_temperature is not None
+    ]
     winds_today = [o.wind_speed for o in today_obs if o.wind_speed is not None]
     gusts_today = [o.wind_gust for o in today_obs if o.wind_gust is not None]
+
+    temp_max_c = temp_min_c = None
+    temp_max_ts = temp_min_ts = None
+    if _temp_pairs_today:
+        _max_pair = max(_temp_pairs_today, key=lambda x: x[0])
+        _min_pair = min(_temp_pairs_today, key=lambda x: x[0])
+        temp_max_c = round(_max_pair[0], 1)
+        temp_min_c = round(_min_pair[0], 1)
+        temp_max_ts = _max_pair[1]
+        temp_min_ts = _min_pair[1]
+
+    def _dt_to_unix(dt) -> Optional[float]:
+        """Convert a naive-UTC or tz-aware datetime to a Unix epoch float."""
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.timestamp()
 
     # Robust wind aggregations:
     # - Some feeds provide speed but no gust on rapid packets.
@@ -830,8 +857,10 @@ async def get_wx_summary(db: Session = Depends(get_db)):
 
     return {
         "today": {
-            "temp_min_c": round(min(temps_today), 1) if temps_today else None,
-            "temp_max_c": round(max(temps_today), 1) if temps_today else None,
+            "temp_min_c": temp_min_c,
+            "temp_max_c": temp_max_c,
+            "temp_min_time": _dt_to_unix(temp_min_ts),
+            "temp_max_time": _dt_to_unix(temp_max_ts),
             "rain_mm": round(rain_today_final, 2),
             "avg_wind_mps": avg_wind_mps,
             "max_gust_mps": max_gust_mps,
@@ -881,5 +910,10 @@ async def get_wx_summary(db: Session = Depends(get_db)):
                 if wf_metrics and wf_metrics.get("strike_last_distance_km") is not None
                 else latest_lightning_distance_km
             ),
+        },
+        "station_health": {
+            "battery_voltage": latest.battery_voltage if latest else None,
+            "rssi": latest.rssi if latest else None,
+            "last_observation_ts": _dt_to_unix(latest.timestamp) if latest else None,
         },
     }

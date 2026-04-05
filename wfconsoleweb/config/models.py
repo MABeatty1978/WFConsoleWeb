@@ -102,6 +102,21 @@ class DisplaySettings(Base):
     # Language
     language = Column(String(5), default="en")
     
+    # Alert notification settings
+    alert_email_enabled = Column(Boolean, default=False)
+    alert_email_address = Column(String(256), nullable=True)
+    alert_browser_push_enabled = Column(Boolean, default=False)
+    alert_cooldown_minutes = Column(Integer, default=60)  # Prevent alert spam
+    
+    # Alert thresholds (overridable from defaults in alerts.py)
+    alert_extreme_heat_c = Column(Float, default=40.0)
+    alert_extreme_cold_c = Column(Float, default=-20.0)
+    alert_high_wind_mps = Column(Float, default=15.5)
+    alert_extreme_wind_mps = Column(Float, default=25.7)
+    alert_high_uv = Column(Float, default=10.0)
+    alert_lightning_distance_km = Column(Float, default=5.0)
+    alert_heavy_rain_mm = Column(Float, default=50.0)
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

@@ -137,6 +137,20 @@ For a detached backend process with pid/log management:
 .\scripts\manage-backend.ps1 stop
 ```
 
+This flow starts the backend as a background process, so closing the shell that ran the command does not stop the server.
+
+For a one-liner detached launch:
+
+```powershell
+Start-Process -WindowStyle Hidden -FilePath "powershell.exe" -ArgumentList @("-NoProfile","-ExecutionPolicy","Bypass","-File","C:/path/to/WFConsoleWeb/scripts/manage-backend.ps1","start")
+```
+
+For Administrator-elevated startup and automatic cleanup of conflicting 8000/TCP and 50222/UDP owners:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\start-admin.ps1"
+```
+
 Equivalent batch wrapper:
 
 ```powershell
@@ -274,6 +288,11 @@ The repository includes these helper scripts and utilities:
 		- `.\scripts\manage-backend.ps1 status`
 		- `.\scripts\manage-backend.ps1 stop`
 
+- `scripts/start-admin.ps1`
+	- Purpose: elevate to Administrator, clean conflicting server ports, and start backend in the background.
+	- Common use:
+		- `powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\start-admin.ps1"`
+
 - `scripts/manage-backend.bat`
 	- Purpose: batch wrapper around `manage-backend.ps1`.
 	- Common use:
@@ -322,6 +341,13 @@ Start on another port:
 
 ```bash
 python -m uvicorn wfconsoleweb.backend.main:app --port 8001
+```
+
+Or stop the managed background process and restart cleanly:
+
+```powershell
+.\scripts\manage-backend.ps1 stop
+.\scripts\manage-backend.ps1 start
 ```
 
 ### Frontend changes are not visible

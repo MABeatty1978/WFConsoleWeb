@@ -197,4 +197,30 @@
   .chart-container {
     padding: 0.5rem;
   }
+
+  .chart-section {
+    margin-bottom: 1.1rem;
+  }
+
+  .chart-section h2 {
+    font-size: 1rem;
+    margin-bottom: 0.6rem;
+  }
+
+  .chart-section :global(.recharts-cartesian-axis-tick) {
+    font-size: 0.65rem;
+  }
+
+  .chart-section :global(.recharts-legend-wrapper) {
+    padding-top: 0.5rem;
+    max-width: 100%;
+  }
+
+  .chart-section :global(.recharts-default-legend) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.7rem;
+    justify-content: center;
+    line-height: 1.2;
+  }
 }

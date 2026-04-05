@@ -6,6 +6,7 @@ import { useCallback, useMemo } from "react";
 import {
   AreaChart,
   Area,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -268,6 +269,17 @@ export default function HistoryChartsPanel({
               name={chartConfig.name}
               isAnimationActive={false}
             />
+            {metric === "temperature" && (
+              <Line
+                type="monotone"
+                dataKey="dewPoint"
+                stroke="#00a4b4"
+                name="Dew Point (°C)"
+                strokeWidth={2}
+                dot={false}
+                isAnimationActive={false}
+              />
+            )}
           </AreaChart>
         </ResponsiveContainer>
       </div>

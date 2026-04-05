@@ -168,6 +168,8 @@ export interface WxSummary {
   today: {
     temp_min_c: number | null;
     temp_max_c: number | null;
+    temp_min_time: number | null;
+    temp_max_time: number | null;
     rain_mm: number;
     avg_wind_mps: number | null;
     max_gust_mps: number | null;
@@ -192,6 +194,11 @@ export interface WxSummary {
     lightning_strikes_year?: number | null;
     lightning_frequency_10min?: number | null;
     lightning_last_distance_km?: number | null;
+  };
+  station_health: {
+    battery_voltage: number | null;
+    rssi: number | null;
+    last_observation_ts: number | null;
   };
 }
 
